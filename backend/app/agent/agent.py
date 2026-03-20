@@ -9,7 +9,6 @@ Maintains short-term memory (recent logs) + long-term memory (DB insights).
 """
 import json
 import httpx
-from typing import Any
 from app.agent.memory import AgentMemory
 from app.agent.planner import SkillPlanner
 from app.agent.coach import SkillCoach

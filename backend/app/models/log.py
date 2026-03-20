@@ -2,7 +2,8 @@ from sqlalchemy import Column, String, Float, DateTime, Integer, ForeignKey, Enu
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import relationship
 from app.database import Base
-import uuid, enum
+import uuid
+import enum
 from datetime import datetime
 
 class QualityEnum(str, enum.Enum):
