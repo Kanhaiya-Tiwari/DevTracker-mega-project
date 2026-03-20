@@ -1,7 +1,0 @@
-apiVersion: v1
-kind: Namespace
-metadata:
-	name: devtrackr
-	labels:
-		app.kubernetes.io/name: devtrackr
-		app.kubernetes.io/part-of: devtrackr-platform
