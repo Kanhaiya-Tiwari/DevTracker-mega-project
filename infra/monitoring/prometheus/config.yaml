@@ -1,0 +1,155 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: prometheus-config
+  namespace: monitoring
+data:
+  prometheus.yml: |
+    global:
+      scrape_interval: 15s
+      evaluation_interval: 15s
+
+    rule_files:
+      - /etc/prometheus/rules/*.yml
+
+    scrape_configs:
+      # ── Prometheus self-monitoring ──
+      - job_name: prometheus
+        static_configs:
+          - targets: ["localhost:9090"]
+
+      # ── DevTrackr Backend (FastAPI) ──
+      - job_name: devtrackr-backend
+        kubernetes_sd_configs:
+          - role: pod
+            namespaces:
+              names: [devtrackr]
+        relabel_configs:
+          - source_labels: [__meta_kubernetes_pod_label_app]
+            regex: backend
+            action: keep
+          - source_labels: [__meta_kubernetes_pod_ip]
+            target_label: __address__
+            replacement: "$1:8000"
+          - source_labels: [__meta_kubernetes_pod_name]
+            target_label: pod
+
+      # ── Frontend (nginx stub_status) ──
+      - job_name: devtrackr-frontend
+        kubernetes_sd_configs:
+          - role: pod
+            namespaces:
+              names: [devtrackr]
+        relabel_configs:
+          - source_labels: [__meta_kubernetes_pod_label_app]
+            regex: frontend
+            action: keep
+          - source_labels: [__meta_kubernetes_pod_ip]
+            target_label: __address__
+            replacement: "$1:3000"
+
+      # ── Node Exporter (host metrics) ──
+      - job_name: node-exporter
+        kubernetes_sd_configs:
+          - role: node
+        relabel_configs:
+          - source_labels: [__address__]
+            regex: (.+):(.+)
+            target_label: __address__
+            replacement: "$1:9100"
+
+      # ── Kube State Metrics ──
+      - job_name: kube-state-metrics
+        static_configs:
+          - targets: ["kube-state-metrics.monitoring.svc:8080"]
+
+      # ── cAdvisor (container metrics) ──
+      - job_name: cadvisor
+        kubernetes_sd_configs:
+          - role: node
+        scheme: https
+        tls_config:
+          insecure_skip_verify: true
+        bearer_token_file: /var/run/secrets/kubernetes.io/serviceaccount/token
+        relabel_configs:
+          - target_label: __address__
+            replacement: kubernetes.default.svc:443
+          - source_labels: [__meta_kubernetes_node_name]
+            regex: (.+)
+            target_label: __metrics_path__
+            replacement: /api/v1/nodes/$1/proxy/metrics/cadvisor
+
+  alerts.yml: |
+    groups:
+      - name: devtrackr-alerts
+        rules:
+          - alert: BackendDown
+            expr: up{job="devtrackr-backend"} == 0
+            for: 1m
+            labels:
+              severity: critical
+            annotations:
+              summary: "Backend pod is down"
+              description: "{{ $labels.pod }} has been down for more than 1 minute."
+
+          - alert: HighErrorRate
+            expr: |
+              sum(rate(http_requests_total{job="devtrackr-backend",status=~"5.."}[5m]))
+              / sum(rate(http_requests_total{job="devtrackr-backend"}[5m])) > 0.05
+            for: 5m
+            labels:
+              severity: warning
+            annotations:
+              summary: "High 5xx error rate (>5%)"
+
+          - alert: HighResponseLatency
+            expr: |
+              histogram_quantile(0.95, rate(http_request_duration_seconds_bucket{job="devtrackr-backend"}[5m])) > 2
+            for: 5m
+            labels:
+              severity: warning
+            annotations:
+              summary: "P95 latency above 2 seconds"
+
+          - alert: PodCrashLooping
+            expr: rate(kube_pod_container_status_restarts_total{namespace="devtrackr"}[15m]) > 0
+            for: 5m
+            labels:
+              severity: critical
+            annotations:
+              summary: "Pod {{ $labels.pod }} is crash-looping"
+
+          - alert: HighMemoryUsage
+            expr: |
+              container_memory_usage_bytes{namespace="devtrackr"}
+              / container_spec_memory_limit_bytes{namespace="devtrackr"} > 0.9
+            for: 5m
+            labels:
+              severity: warning
+            annotations:
+              summary: "Container {{ $labels.container }} using >90% memory"
+
+          - alert: HighCPUUsage
+            expr: |
+              rate(container_cpu_usage_seconds_total{namespace="devtrackr"}[5m]) > 0.8
+            for: 5m
+            labels:
+              severity: warning
+            annotations:
+              summary: "Container {{ $labels.container }} CPU >80%"
+
+          - alert: PostgresDown
+            expr: up{job="postgres"} == 0
+            for: 1m
+            labels:
+              severity: critical
+            annotations:
+              summary: "PostgreSQL is unreachable"
+
+          - alert: RedisDown
+            expr: up{job="redis"} == 0
+            for: 1m
+            labels:
+              severity: critical
+            annotations:
+              summary: "Redis is unreachable"

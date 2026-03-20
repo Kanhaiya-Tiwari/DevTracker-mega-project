@@ -1,0 +1,102 @@
+name: "DevTrackr – DevSecOps Pipeline"
+
+on:
+  push:
+    branches: [main, develop]
+  workflow_dispatch:
+    inputs:
+      skip_deploy:
+        description: "Skip deployment (test/scan only)"
+        required: false
+        type: boolean
+        default: false
+      terraform_action:
+        description: "Terraform action"
+        required: false
+        type: choice
+        options:
+          - apply
+          - plan
+        default: apply
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # ──────────────────────────────────────────────────────
+  # Stage 1: Lint, Test & Security (parallel)
+  # ──────────────────────────────────────────────────────
+  lint-test:
+    name: "🧪 Lint & Test"
+    uses: ./.github/workflows/lint-test.yml
+
+  security-scan:
+    name: "🔒 Security Scan"
+    uses: ./.github/workflows/security-scan.yml
+
+  # ──────────────────────────────────────────────────────
+  # Stage 2: Terraform – Provision AWS Infra
+  # ──────────────────────────────────────────────────────
+  terraform:
+    name: "🏗️ Terraform"
+    needs: [lint-test, security-scan]
+    if: |
+      github.ref == 'refs/heads/main' &&
+      (github.event_name == 'push' || !inputs.skip_deploy)
+    uses: ./.github/workflows/terraform-deploy.yml
+    with:
+      action: ${{ inputs.terraform_action || 'apply' }}
+    secrets: inherit
+
+  # ──────────────────────────────────────────────────────
+  # Stage 3: Docker Build & Push to ECR
+  # ──────────────────────────────────────────────────────
+  docker-build:
+    name: "🐳 Docker Build"
+    needs: [lint-test, security-scan]
+    if: |
+      github.ref == 'refs/heads/main' &&
+      (github.event_name == 'push' || !inputs.skip_deploy)
+    uses: ./.github/workflows/docker-build.yml
+    secrets: inherit
+
+  # ──────────────────────────────────────────────────────
+  # Stage 4: Deploy to Kubernetes (EKS)
+  # ──────────────────────────────────────────────────────
+  k8s-deploy:
+    name: "☸️ K8s Deploy"
+    needs: [terraform, docker-build]
+    if: |
+      github.ref == 'refs/heads/main' &&
+      (github.event_name == 'push' || !inputs.skip_deploy)
+    uses: ./.github/workflows/k8s-deploy.yml
+    with:
+      backend_image: ${{ needs.docker-build.outputs.backend_image }}
+      frontend_image: ${{ needs.docker-build.outputs.frontend_image }}
+    secrets: inherit
+
+  # ──────────────────────────────────────────────────────
+  # Stage 5: Post-deploy notification
+  # ──────────────────────────────────────────────────────
+  notify:
+    name: "📢 Notify"
+    needs: [k8s-deploy]
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - name: Pipeline Summary
+        run: |
+          echo "## DevTrackr Pipeline Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Stage | Status |" >> $GITHUB_STEP_SUMMARY
+          echo "|-------|--------|" >> $GITHUB_STEP_SUMMARY
+          echo "| Lint & Test | ${{ needs.lint-test.result || '⏭️ skipped' }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Security Scan | ${{ needs.security-scan.result || '⏭️ skipped' }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Terraform | ${{ needs.terraform.result || '⏭️ skipped' }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Docker Build | ${{ needs.docker-build.result || '⏭️ skipped' }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| K8s Deploy | ${{ needs.k8s-deploy.result || '⏭️ skipped' }} |" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Commit:** \`${{ github.sha }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "**Branch:** \`${{ github.ref_name }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "**Actor:** ${{ github.actor }}" >> $GITHUB_STEP_SUMMARY

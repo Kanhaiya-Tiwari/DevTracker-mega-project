@@ -1,0 +1,186 @@
+@import "tailwindcss";
+
+:root { color-scheme: dark; }
+* { box-sizing: border-box; }
+html { scroll-behavior: smooth; }
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  background: #030712;
+  background-image:
+    radial-gradient(ellipse at 10% 0%, rgba(14,165,233,0.12) 0%, transparent 50%),
+    radial-gradient(ellipse at 90% 0%, rgba(217,70,239,0.10) 0%, transparent 45%),
+    radial-gradient(ellipse at 50% 100%, rgba(251,191,36,0.06) 0%, transparent 50%);
+  color: #e2e8f0;
+  font-family: Inter, ui-sans-serif, system-ui, -apple-system, sans-serif;
+}
+#root { min-height: 100vh; }
+
+.field {
+  width: 100%;
+  border-radius: 0.75rem;
+  border: 1px solid rgba(255,255,255,0.08);
+  background: rgba(2,6,23,0.9);
+  padding: 0.85rem 1rem;
+  color: white;
+  outline: none;
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+.field:focus {
+  border-color: rgba(14,165,233,0.8);
+  box-shadow: 0 0 0 3px rgba(14,165,233,0.15);
+}
+.field::placeholder { color: #475569; }
+
+.glass-card {
+  background: rgba(5,10,28,0.88);
+  border: 1px solid rgba(255,255,255,0.07);
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+}
+
+.glow-sky    { box-shadow: 0 0 40px rgba(14,165,233,0.18), 0 0 80px rgba(14,165,233,0.06); }
+.glow-pink   { box-shadow: 0 0 40px rgba(217,70,239,0.18); }
+.glow-amber  { box-shadow: 0 0 40px rgba(251,191,36,0.18); }
+.glow-green  { box-shadow: 0 0 40px rgba(52,211,153,0.18); }
+
+.gradient-text {
+  background: linear-gradient(135deg, #38bdf8 0%, #a78bfa 50%, #f472b6 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+.gradient-text-gold {
+  background: linear-gradient(135deg, #fbbf24 0%, #f59e0b 50%, #ef4444 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+.gradient-text-green {
+  background: linear-gradient(135deg, #34d399 0%, #10b981 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.gradient-shimmer { position: relative; overflow: hidden; }
+.gradient-shimmer::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.08) 50%, transparent 100%);
+  background-size: 200% 100%;
+  animation: shimmer 2.5s linear infinite;
+}
+
+@keyframes floatY {
+  0%, 100% { transform: translateY(0px); }
+  50% { transform: translateY(-12px); }
+}
+@keyframes shimmer {
+  0% { background-position: -200% center; }
+  100% { background-position: 200% center; }
+}
+@keyframes pulseGlow {
+  0%, 100% { opacity: 0.6; transform: scale(1); }
+  50% { opacity: 1; transform: scale(1.06); }
+}
+@keyframes pulseRing {
+  0% { box-shadow: 0 0 0 0 rgba(14,165,233,0.5); }
+  70% { box-shadow: 0 0 0 12px rgba(14,165,233,0); }
+  100% { box-shadow: 0 0 0 0 rgba(14,165,233,0); }
+}
+@keyframes slideUp {
+  from { transform: translateY(20px); opacity: 0; }
+  to   { transform: translateY(0); opacity: 1; }
+}
+@keyframes slideIn {
+  from { transform: translateX(-12px); opacity: 0; }
+  to   { transform: translateX(0); opacity: 1; }
+}
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+@keyframes bounce-soft {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-4px); }
+}
+@keyframes spin-slow {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+@keyframes countUp {
+  from { transform: scale(0.7); opacity: 0; }
+  to { transform: scale(1); opacity: 1; }
+}
+@keyframes orb-move {
+  0%, 100% { transform: translate(0, 0) scale(1); }
+  25% { transform: translate(20px, -15px) scale(1.05); }
+  50% { transform: translate(-10px, -25px) scale(0.95); }
+  75% { transform: translate(-20px, 10px) scale(1.02); }
+}
+@keyframes progressFill {
+  from { width: 0%; }
+}
+
+.float-soft  { animation: floatY 7s ease-in-out infinite; }
+.pulse-glow  { animation: pulseGlow 2.5s ease-in-out infinite; }
+.pulse-ring  { animation: pulseRing 2s ease-out infinite; }
+.slide-up    { animation: slideUp 0.4s ease forwards; }
+.slide-in    { animation: slideIn 0.35s ease forwards; }
+.fade-in     { animation: fadeIn 0.5s ease forwards; }
+.bounce-soft { animation: bounce-soft 2s ease-in-out infinite; }
+.spin-slow   { animation: spin-slow 8s linear infinite; }
+.count-up    { animation: countUp 0.5s cubic-bezier(0.34,1.56,0.64,1) forwards; }
+.orb-move    { animation: orb-move 12s ease-in-out infinite; }
+
+::-webkit-scrollbar { width: 5px; height: 5px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 4px; }
+::-webkit-scrollbar-thumb:hover { background: rgba(14,165,233,0.4); }
+
+.rank-gold   { background: linear-gradient(135deg, #fbbf24, #f59e0b); color: #1c0a00; }
+.rank-silver { background: linear-gradient(135deg, #94a3b8, #cbd5e1); color: #1e293b; }
+.rank-bronze { background: linear-gradient(135deg, #fb923c, #ea580c); color: white; }
+
+.chat-bubble-user {
+  background: linear-gradient(135deg, #0ea5e9, #6366f1);
+  border-radius: 18px 18px 4px 18px;
+}
+.chat-bubble-ai {
+  background: rgba(255,255,255,0.06);
+  border: 1px solid rgba(255,255,255,0.1);
+  border-radius: 18px 18px 18px 4px;
+}
+
+.typing-dot {
+  width: 7px; height: 7px;
+  background: #0ea5e9;
+  border-radius: 50%;
+  animation: bounce-soft 1.2s ease-in-out infinite;
+}
+.typing-dot:nth-child(2) { animation-delay: 0.2s; }
+.typing-dot:nth-child(3) { animation-delay: 0.4s; }
+
+.gradient-border {
+  position: relative;
+  background: rgba(5,10,28,0.88);
+  border-radius: 1rem;
+}
+.gradient-border::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  padding: 1px;
+  background: linear-gradient(135deg, rgba(14,165,233,0.5), rgba(168,85,247,0.5), rgba(244,114,182,0.5));
+  -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+  pointer-events: none;
+}
+
+.progress-animated { animation: progressFill 1.2s cubic-bezier(0.34,1.56,0.64,1) forwards; }
