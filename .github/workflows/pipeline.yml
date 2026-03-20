@@ -81,22 +81,111 @@ jobs:
   # ──────────────────────────────────────────────────────
   notify:
     name: "📢 Notify"
-    needs: [k8s-deploy]
+    needs: [lint-test, security-scan, terraform, docker-build, k8s-deploy]
     if: always()
     runs-on: ubuntu-latest
     steps:
-      - name: Pipeline Summary
+      - name: Determine overall pipeline status
+        id: status
         run: |
-          echo "## DevTrackr Pipeline Summary" >> $GITHUB_STEP_SUMMARY
+          LINT="${{ needs.lint-test.result }}"
+          SECURITY="${{ needs.security-scan.result }}"
+          TERRAFORM="${{ needs.terraform.result }}"
+          DOCKER="${{ needs.docker-build.result }}"
+          K8S="${{ needs.k8s-deploy.result }}"
+
+          # A job result of "failure" or "cancelled" marks the pipeline as failed.
+          if [[ "$LINT"     == "failure" || "$LINT"     == "cancelled" ||
+                "$SECURITY" == "failure" || "$SECURITY" == "cancelled" ||
+                "$TERRAFORM"== "failure" || "$TERRAFORM"== "cancelled" ||
+                "$DOCKER"   == "failure" || "$DOCKER"   == "cancelled" ||
+                "$K8S"      == "failure" || "$K8S"      == "cancelled" ]]; then
+            echo "overall=failure" >> "$GITHUB_OUTPUT"
+          else
+            echo "overall=success" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Pipeline Summary (GitHub Step Summary)
+        run: |
+          STATUS="${{ steps.status.outputs.overall }}"
+          if [[ "$STATUS" == "success" ]]; then
+            BADGE="✅ SUCCESS"
+          else
+            BADGE="❌ FAILURE"
+          fi
+
+          echo "## DevTrackr Pipeline Summary – ${BADGE}" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "| Stage | Status |" >> $GITHUB_STEP_SUMMARY
           echo "|-------|--------|" >> $GITHUB_STEP_SUMMARY
-          echo "| Lint & Test | ${{ needs.lint-test.result || '⏭️ skipped' }} |" >> $GITHUB_STEP_SUMMARY
-          echo "| Security Scan | ${{ needs.security-scan.result || '⏭️ skipped' }} |" >> $GITHUB_STEP_SUMMARY
-          echo "| Terraform | ${{ needs.terraform.result || '⏭️ skipped' }} |" >> $GITHUB_STEP_SUMMARY
-          echo "| Docker Build | ${{ needs.docker-build.result || '⏭️ skipped' }} |" >> $GITHUB_STEP_SUMMARY
-          echo "| K8s Deploy | ${{ needs.k8s-deploy.result || '⏭️ skipped' }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| 🧪 Lint & Test    | ${{ needs.lint-test.result }}    |" >> $GITHUB_STEP_SUMMARY
+          echo "| 🔒 Security Scan  | ${{ needs.security-scan.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| 🏗️ Terraform       | ${{ needs.terraform.result }}    |" >> $GITHUB_STEP_SUMMARY
+          echo "| 🐳 Docker Build    | ${{ needs.docker-build.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| ☸️ K8s Deploy      | ${{ needs.k8s-deploy.result }}   |" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Overall:** ${BADGE}" >> $GITHUB_STEP_SUMMARY
           echo "**Commit:** \`${{ github.sha }}\`" >> $GITHUB_STEP_SUMMARY
           echo "**Branch:** \`${{ github.ref_name }}\`" >> $GITHUB_STEP_SUMMARY
           echo "**Actor:** ${{ github.actor }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Run:** https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}" >> $GITHUB_STEP_SUMMARY
+
+      # ── Email on SUCCESS ─────────────────────────────────
+      - name: "📧 Email – Deployment Succeeded"
+        if: steps.status.outputs.overall == 'success' && needs.k8s-deploy.result == 'success'
+        uses: dawidd6/action-send-mail@v3
+        with:
+          server_address: ${{ secrets.MAIL_SERVER }}
+          server_port: ${{ secrets.MAIL_PORT || 587 }}
+          username: ${{ secrets.MAIL_USERNAME }}
+          password: ${{ secrets.MAIL_PASSWORD }}
+          subject: "✅ DevTrackr Deployed Successfully – ${{ github.ref_name }}"
+          to: ${{ vars.NOTIFICATION_EMAIL || 'kt230088@gmail.com' }}
+          from: DevTrackr CI <${{ secrets.MAIL_USERNAME }}>
+          body: |
+            🚀 DevTrackr has been deployed successfully!
+
+            Branch : ${{ github.ref_name }}
+            Commit : ${{ github.sha }}
+            Actor  : ${{ github.actor }}
+
+            Stage Results
+            ─────────────────────────────
+            🧪 Lint & Test    : ${{ needs.lint-test.result }}
+            🔒 Security Scan  : ${{ needs.security-scan.result }}
+            🏗️  Terraform       : ${{ needs.terraform.result }}
+            🐳 Docker Build    : ${{ needs.docker-build.result }}
+            ☸️  K8s Deploy      : ${{ needs.k8s-deploy.result }}
+
+            View run: https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}
+
+      # ── Email on FAILURE ─────────────────────────────────
+      - name: "📧 Email – Pipeline Failed"
+        if: steps.status.outputs.overall == 'failure'
+        uses: dawidd6/action-send-mail@v3
+        with:
+          server_address: ${{ secrets.MAIL_SERVER }}
+          server_port: ${{ secrets.MAIL_PORT || 587 }}
+          username: ${{ secrets.MAIL_USERNAME }}
+          password: ${{ secrets.MAIL_PASSWORD }}
+          subject: "❌ DevTrackr Pipeline FAILED – ${{ github.ref_name }} (${{ github.sha }})"
+          to: ${{ vars.NOTIFICATION_EMAIL || 'kt230088@gmail.com' }}
+          from: DevTrackr CI <${{ secrets.MAIL_USERNAME }}>
+          body: |
+            ⚠️  The DevTrackr pipeline has FAILED and was NOT deployed.
+
+            Branch : ${{ github.ref_name }}
+            Commit : ${{ github.sha }}
+            Actor  : ${{ github.actor }}
+
+            Stage Results
+            ─────────────────────────────
+            🧪 Lint & Test    : ${{ needs.lint-test.result }}
+            🔒 Security Scan  : ${{ needs.security-scan.result }}
+            🏗️  Terraform       : ${{ needs.terraform.result }}
+            🐳 Docker Build    : ${{ needs.docker-build.result }}
+            ☸️  K8s Deploy      : ${{ needs.k8s-deploy.result }}
+
+            Please investigate and fix the failing stage.
+
+            View run: https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}
