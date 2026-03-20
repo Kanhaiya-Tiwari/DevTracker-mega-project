@@ -4,7 +4,6 @@ from sqlalchemy import select, desc, func
 from app.dependencies import get_db, get_current_user
 from app.models.user import User
 from app.models.log import Log
-from app.models.skill import Skill
 
 router = APIRouter()
 
@@ -24,7 +23,7 @@ async def get_leaderboard(
         order_col = desc(User.xp)
 
     result = await db.execute(
-        select(User).where(User.is_active == True).order_by(order_col).limit(50)
+        select(User).where(User.is_active).order_by(order_col).limit(50)
     )
     users = result.scalars().all()
 
@@ -56,6 +55,6 @@ async def get_leaderboard(
         )
 
     # Also find current user rank even if outside top 50
-    my_rank = next((l["rank"] for l in leaders if l["is_me"]), None)
+    my_rank = next((leader["rank"] for leader in leaders if leader["is_me"]), None)
 
     return {"leaders": leaders, "total": len(leaders), "my_rank": my_rank}

@@ -4,7 +4,6 @@ Pure functions — no side effects, fully testable.
 """
 from datetime import datetime, timedelta
 from typing import List
-import math
 
 def completion_probability(
     completed_hours: float,
@@ -22,8 +21,8 @@ def completion_probability(
     if not recent_logs:
         return 45
 
-    avg_hours = sum(l["hours"] for l in recent_logs) / len(recent_logs)
-    consistency = sum(1 for l in recent_logs if l["hours"] >= daily_target * 0.7) / len(recent_logs)
+    avg_hours = sum(log["hours"] for log in recent_logs) / len(recent_logs)
+    consistency = sum(1 for log in recent_logs if log["hours"] >= daily_target * 0.7) / len(recent_logs)
     days_left = max(1, (deadline - datetime.utcnow()).days)
     hours_left = max(0.1, total_hours - completed_hours)
     projected = avg_hours * days_left
@@ -33,13 +32,16 @@ def completion_probability(
 
 def consistency_score(logs: List[dict], skill_id: str, window_days: int = 14) -> int:
     cutoff = datetime.utcnow() - timedelta(days=window_days)
-    relevant = [l for l in logs if l["skill_id"] == skill_id and l["log_date"] >= cutoff]
+    relevant = [log for log in logs if log["skill_id"] == skill_id and log["log_date"] >= cutoff]
     return round((len(relevant) / window_days) * 100)
 
 def streak_multiplier(streak: int) -> float:
-    if streak >= 30: return 3.0
-    if streak >= 14: return 2.0
-    if streak >= 7:  return 1.5
+    if streak >= 30:
+        return 3.0
+    if streak >= 14:
+        return 2.0
+    if streak >= 7:
+        return 1.5
     return 1.0
 
 def xp_for_log(hours: float, streak: int, quality: str) -> int:
@@ -49,19 +51,19 @@ def xp_for_log(hours: float, streak: int, quality: str) -> int:
     return round(base * mult * q_bonus)
 
 def detect_burnout(logs: List[dict], skill_id: str) -> bool:
-    recent = [l for l in logs if l["skill_id"] == skill_id][-7:]
+    recent = [log for log in logs if log["skill_id"] == skill_id][-7:]
     if len(recent) < 4:
         return False
-    avg_recent = sum(l["hours"] for l in recent[-3:]) / 3
-    avg_prior  = sum(l["hours"] for l in recent[:4])  / 4
+    avg_recent = sum(log["hours"] for log in recent[-3:]) / 3
+    avg_prior  = sum(log["hours"] for log in recent[:4])  / 4
     return avg_prior > 0 and (avg_recent / avg_prior) < 0.5
 
 def detect_peak_hour(logs: List[dict]) -> int | None:
     dist: dict[int, float] = {}
-    for l in logs:
-        h = l.get("hour_of_day")
+    for log in logs:
+        h = log.get("hour_of_day")
         if h is not None:
-            dist[h] = dist.get(h, 0) + l["hours"]
+            dist[h] = dist.get(h, 0) + log["hours"]
     return max(dist, key=dist.get) if dist else None
 
 def calculate_new_streak(last_log_date: datetime | None, streak: int) -> int:
