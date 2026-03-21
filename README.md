@@ -22,8 +22,6 @@ DevTrackr is a full-stack application with an AI-powered coaching engine, gamifi
 
 ## Features
 
-### Core
-
 - **Skill Tracking** — Create skills with target hours, deadlines, difficulty levels, and phases
 - **Session Logging** — Log practice sessions with hours, quality rating, and notes
 - **Date-wise History** — Browse what you studied on any specific date
