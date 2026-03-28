@@ -1,5 +1,4 @@
 from datetime import datetime
-from typing import Optional
 
 from app.models.skill import Skill
 

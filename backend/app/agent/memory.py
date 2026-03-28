@@ -22,14 +22,14 @@ class AgentMemory:
         logs_q = await db.execute(
             select(Log).where(Log.skill_id == skill_id, Log.log_date >= cutoff).order_by(Log.log_date.desc())
         )
-        recent_logs = [{"hours": l.hours, "quality": l.quality, "date": l.log_date.isoformat(), "hour": l.hour_of_day} for l in logs_q.scalars()]
+        recent_logs = [{"hours": log.hours, "quality": log.quality, "date": log.log_date.isoformat(), "hour": log.hour_of_day} for log in logs_q.scalars()]
         # Long-term: last 5 insights
         ins_q = await db.execute(
             select(Insight).where(Insight.user_id == user_id, Insight.skill_id == skill_id).order_by(Insight.created_at.desc()).limit(5)
         )
         past_insights = [{"verdict": i.completion_verdict, "date": i.created_at.isoformat()} for i in ins_q.scalars()]
 
-        avg_hours = sum(l["hours"] for l in recent_logs) / max(1, len(recent_logs))
+        avg_hours = sum(entry["hours"] for entry in recent_logs) / max(1, len(recent_logs))
         days_left = max(0, (skill.deadline - datetime.utcnow()).days)
 
         return {
