@@ -57,15 +57,15 @@ jobs:
 
       - name: Deploy backend
         run: |
-          sed -i "s|gcr.io/YOUR_PROJECT/devtrackr-backend:latest|${{ inputs.backend_image }}|g" \
-            infra/kubernetes/backend-deployment.yaml
           kubectl apply -f infra/kubernetes/backend-deployment.yaml
+          kubectl -n devtrackr set image deployment/devtrackr-backend \
+            backend=${{ inputs.backend_image }}
 
       - name: Deploy frontend
         run: |
-          sed -i "s|gcr.io/YOUR_PROJECT/devtrackr-frontend:latest|${{ inputs.frontend_image }}|g" \
-            infra/kubernetes/frontend-deployment.yaml
           kubectl apply -f infra/kubernetes/frontend-deployment.yaml
+          kubectl -n devtrackr set image deployment/devtrackr-frontend \
+            frontend=${{ inputs.frontend_image }}
 
       - name: Deploy ingress
         run: kubectl apply -f infra/kubernetes/ingress.yaml

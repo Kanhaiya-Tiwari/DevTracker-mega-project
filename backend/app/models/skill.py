@@ -1,8 +1,9 @@
-from sqlalchemy import Column, String, Integer, Float, DateTime, ForeignKey, JSON, Enum
+from sqlalchemy import Column, String, Float, DateTime, ForeignKey, JSON, Enum
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import relationship
 from app.database import Base
-import uuid, enum
+import uuid
+import enum
 from datetime import datetime
 
 class DifficultyEnum(str, enum.Enum):

@@ -1,14 +1,12 @@
 from datetime import datetime, date
-from typing import Optional
 
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, Depends, Query, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.schemas.log import LogCreate, LogRead
 from app.models.log import Log
 from app.models.xp import XPLog
 from app.repositories.log_repo import (
-    create_log,
     get_logs_for_skill,
     get_logs_for_skill_by_date,
     get_skill_log_dates,
