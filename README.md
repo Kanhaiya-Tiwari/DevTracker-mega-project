@@ -260,12 +260,6 @@ cd backend && pytest tests/ -v
 | `OPENROUTER_MODEL` | — | AI model (default: `nvidia/nemotron-nano-9b-v2:free`) |
 | `POSTGRES_PASSWORD` | ✅ | PostgreSQL password (Docker Compose) |
 
----
-
-## API Endpoints
-
-All endpoints are prefixed with `/api/v1`.
-
 ### Auth
 
 | Method | Endpoint | Description |
