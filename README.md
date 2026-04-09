@@ -497,9 +497,3 @@ kubectl apply -f infra/monitoring/grafana/
 ```
 
 Access: `http://grafana.devtrackr.io` · Default login: `admin` / (set in `grafana-secret.yaml`)
-
----
-
-## License
-
-MIT
