@@ -1,15 +1,16 @@
+from typing import List, Optional
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 
 from app.models.skill import Skill
 
 
-async def get_skills_for_user(db: AsyncSession, user_id: str) -> list[Skill]:
+async def get_skills_for_user(db: AsyncSession, user_id: str) -> List[Skill]:
     res = await db.execute(select(Skill).where(Skill.user_id == user_id).order_by(Skill.started_at.desc()))
     return res.scalars().all()
 
 
-async def get_skill(db: AsyncSession, skill_id: str) -> Skill | None:
+async def get_skill(db: AsyncSession, skill_id: str) -> Optional[Skill]:
     res = await db.execute(select(Skill).where(Skill.id == skill_id))
     return res.scalar_one_or_none()
 

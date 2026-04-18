@@ -9,10 +9,13 @@ import LoginPage from "./pages/LoginPage";
 import RegisterPage from "./pages/RegisterPage";
 import LeaderboardPage from "./pages/LeaderboardPage";
 import SettingsPage from "./pages/SettingsPage";
+import BlogPage from "./pages/BlogPage";
+import RewardSection from "./components/RewardSection";
 import { useAuth } from "./hooks/useAuth";
 import { useDevtrackrData } from "./hooks/useDevtrackrData";
+import { NotificationProvider } from "./contexts/NotificationContext";
 
-export default function AppShell() {
+function AppContent() {
   const { token, user, loading: authLoading, login, register, logout } = useAuth();
   const [authView, setAuthView] = useState("login");
   const [authBusy, setAuthBusy] = useState(false);
@@ -101,7 +104,6 @@ export default function AppShell() {
           insight={insight}
           onRefreshInsight={onRefreshInsight}
           onAddSkill={onAddSkill}
-          onQuickLog={onQuickLog}
           addSkillLoading={addSkillBusy}
           insightLoading={insightBusy}
           token={token}
@@ -139,6 +141,14 @@ export default function AppShell() {
       return <SettingsPage token={token} user={user} onUserUpdate={() => {}} />;
     }
 
+    if (view === "blog") {
+      return <BlogPage token={token} user={user} />;
+    }
+
+    if (view === "rewards") {
+      return <RewardSection user={user} summary={summary} />;
+    }
+
     return <AIChatPage skill={selectedSkill} insight={insight} token={token} />;
   }, [
     view,
@@ -153,6 +163,8 @@ export default function AppShell() {
     selectedSkill,
     selectedLogs,
     allLogs,
+    user,
+    token,
   ]);
 
   if (authLoading) {
@@ -196,5 +208,13 @@ export default function AppShell() {
         </main>
       </div>
     </div>
+  );
+}
+
+export default function AppShell() {
+  return (
+    <NotificationProvider>
+      <AppContent />
+    </NotificationProvider>
   );
 }

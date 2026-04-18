@@ -1,9 +1,13 @@
+import NotificationCenter from "./NotificationCenter";
+
 export default function Navbar({ user, view, setView, onLogout }) {
   const tabs = [
     { id: "dashboard",   label: "Dashboard",   emoji: "🏠" },
     { id: "skill",       label: "Skills",       emoji: "🎯" },
     { id: "analytics",   label: "Analytics",    emoji: "📊" },
     { id: "chat",        label: "AI Coach",     emoji: "🤖" },
+    { id: "blog",        label: "Community",   emoji: "📝" },
+    { id: "rewards",     label: "Rewards",     emoji: "🎁" },
     { id: "leaderboard", label: "Leaderboard",  emoji: "🏆" },
     { id: "settings",    label: "Settings",     emoji: "⚙️" },
   ];
@@ -27,6 +31,7 @@ export default function Navbar({ user, view, setView, onLogout }) {
         <div className="ml-2 flex items-center gap-2 shrink-0">
           {user && (
             <>
+              <NotificationCenter />
               <span className="hidden md:flex items-center gap-1 rounded-full border border-amber-500/30 bg-amber-500/10 px-2.5 py-1 text-xs font-bold text-amber-300">🔥 {user.streak || 0}d</span>
               <span className="hidden lg:flex items-center gap-1 rounded-full border border-sky-500/30 bg-sky-500/10 px-2.5 py-1 text-xs font-bold text-sky-300">⚡ Lvl {user.level || 1}</span>
               <div className="w-7 h-7 rounded-full bg-gradient-to-br from-violet-600 to-pink-500 flex items-center justify-center text-xs font-bold text-white shadow hidden md:flex">

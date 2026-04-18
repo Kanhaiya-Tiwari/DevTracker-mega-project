@@ -1,13 +1,15 @@
 import { useMemo, useState, useEffect } from "react";
 import Button from "../components/Button";
 import Input from "../components/Input";
-import SkillCard from "../components/SkillCard";
 import AIInsightCard from "../components/AIInsightCard";
 import StatCard from "../components/StatCard";
 import StudyTimer from "../components/StudyTimer";
+import { formatDate, hours } from "../utils/format";
 import { greetingLine } from "../utils/format";
 import { skillProgress } from "../utils/metrics";
 import { api } from "../services/api";
+
+const API_BASE = (import.meta.env.VITE_API_BASE_URL || "http://localhost:8000/api/v1").replace(/\/$/, "");
 
 const TIPS = [
   { icon: "💡", tip: "Spaced repetition beats cramming. Review yesterday's work for 5 min before starting today.", source: "Cognitive Science" },
@@ -58,6 +60,7 @@ function AddSkillModal({ open, onClose, onCreate, loading, token }) {
                 phases: [],
               });
               onClose();
+              window.scrollTo({ top: 0, behavior: 'smooth' });
             } catch (err) {
               alert(err?.message || "Failed to add skill");
             }
@@ -106,10 +109,12 @@ function AddSkillModal({ open, onClose, onCreate, loading, token }) {
   );
 }
 
-export default function DashboardPage({ skills, logsBySkill, selectedSkillId, setSelectedSkillId, summary, insight, onRefreshInsight, onAddSkill, onQuickLog, addSkillLoading, insightLoading, token }) {
+export default function DashboardPage({ skills, logsBySkill, selectedSkillId, setSelectedSkillId, summary, insight, onRefreshInsight, onAddSkill, addSkillLoading, insightLoading, token }) {
   const [showModal, setShowModal] = useState(false);
   const [tipIdx, setTipIdx] = useState(0);
   const [dailyTip, setDailyTip] = useState(null);
+  const [logProofs, setLogProofs] = useState({});
+  const [loadingProof, setLoadingProof] = useState({});
 
   useEffect(() => {
     const t = setInterval(() => setTipIdx((i) => (i + 1) % TIPS.length), 8000);
@@ -122,6 +127,39 @@ export default function DashboardPage({ skills, logsBySkill, selectedSkillId, se
       .then((r) => setDailyTip(r.tip))
       .catch(() => {});
   }, [token]);
+
+  // Load proof of work for all logs
+  useEffect(() => {
+    if (!token || !logsBySkill) return;
+    Object.values(logsBySkill).flat().forEach(log => {
+      loadProofOfWorkForLog(log.id);
+    });
+  }, [logsBySkill, token]);
+
+  const loadProofOfWorkForLog = async (logId) => {
+    if (!logId || !token) return;
+    setLoadingProof(prev => ({ ...prev, [logId]: true }));
+    try {
+      const data = await api.getProofOfWorkByLog(token, logId);
+      setLogProofs(prev => ({ ...prev, [logId]: data || [] }));
+    } catch (error) {
+      console.error("Failed to load proof of work:", error);
+    } finally {
+      setLoadingProof(prev => ({ ...prev, [logId]: false }));
+    }
+  };
+
+  // Flatten all logs from all skills and sort by date
+  const allLogs = useMemo(() => {
+    const logs = [];
+    Object.entries(logsBySkill || {}).forEach(([skillId, skillLogs]) => {
+      const skill = skills.find(s => s.id === skillId);
+      skillLogs.forEach(log => {
+        logs.push({ ...log, skillName: skill?.name || "Unknown", skillIcon: skill?.icon || "⚡" });
+      });
+    });
+    return logs.sort((a, b) => new Date(b.log_date || b.date) - new Date(a.log_date || a.date));
+  }, [logsBySkill, skills]);
 
   const selected = skills.find((s) => s.id === selectedSkillId) || skills[0] || null;
   const selectedProgress = useMemo(() => skillProgress(selected, selected ? logsBySkill[selected.id] || [] : []), [selected, logsBySkill]);
@@ -180,37 +218,89 @@ export default function DashboardPage({ skills, logsBySkill, selectedSkillId, se
         <AIInsightCard insight={insight} onRefresh={onRefreshInsight} loading={insightLoading} />
       )}
 
-      {/* Skills Grid */}
+      {/* Session History */}
       <section>
         <div className="flex items-center justify-between mb-3">
           <h3 className="text-base font-bold text-white">
-            🎯 Your Skills
-            <span className="ml-2 text-xs font-medium text-slate-400 bg-white/8 rounded-full px-2 py-0.5">{skills.length}</span>
+            📋 Session History
+            <span className="ml-2 text-xs font-medium text-slate-400 bg-white/8 rounded-full px-2 py-0.5">{allLogs.length}</span>
           </h3>
-          <p className="text-xs text-slate-500">Click a card to select</p>
+          <p className="text-xs text-slate-500">Recent sessions across all skills</p>
         </div>
 
-        {skills.length === 0 ? (
+        {allLogs.length === 0 ? (
           <div className="rounded-2xl border border-dashed border-white/15 bg-white/2 p-10 text-center">
-            <p className="text-4xl mb-3">📚</p>
-            <p className="text-white font-semibold text-lg">No skills yet</p>
-            <p className="text-slate-400 text-sm mt-1 mb-4">Start your first skill and let AI guide your learning journey</p>
-            <Button onClick={() => setShowModal(true)} variant="primary">
-              ➕ Add Your First Skill
-            </Button>
+            <p className="text-4xl mb-3">�</p>
+            <p className="text-white font-semibold text-lg">No sessions logged yet</p>
+            <p className="text-slate-400 text-sm mt-1">Go to a skill page to log your first session</p>
           </div>
         ) : (
-          <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
-            {skills.map((skill) => (
-              <SkillCard
-                key={skill.id}
-                skill={skill}
-                logs={logsBySkill[skill.id] || []}
-                selected={skill.id === selectedSkillId}
-                onSelect={setSelectedSkillId}
-                onLog={(id) => onQuickLog(id, 1)}
-              />
-            ))}
+          <div className="space-y-3">
+            {allLogs.map((log) => {
+              const proofs = logProofs[log.id] || [];
+              const hasProof = proofs.length > 0;
+              return (
+                <div key={log.id} className="rounded-xl border border-white/8 bg-white/4 p-4 hover:border-white/12 transition-colors">
+                  <div className="flex items-start justify-between mb-2">
+                    <div className="flex items-center gap-3">
+                      <span className="text-2xl">{log.skillIcon}</span>
+                      <div>
+                        <p className="text-sm font-semibold text-white">{log.skillName}</p>
+                        <div className="flex items-center gap-2 mt-0.5">
+                          <p className="text-xs text-slate-400">{formatDate(log.log_date || log.date)}</p>
+                          {log.quality && (
+                            <span className="text-xs px-2 py-0.5 rounded-full bg-slate-700 text-slate-300">{log.quality}</span>
+                          )}
+                        </div>
+                        {log.notes && <p className="text-xs text-slate-500 mt-1">{log.notes}</p>}
+                      </div>
+                    </div>
+                    <div className="text-right">
+                      <p className="font-bold text-white text-lg">{hours(log.hours)}</p>
+                      <p className="text-xs text-slate-500">hours</p>
+                    </div>
+                  </div>
+
+                  {/* Proof of Work Status */}
+                  <div className="mt-3 pt-3 border-t border-white/10">
+                    <div className="flex items-center gap-2">
+                      <p className="text-xs font-semibold text-purple-300">📸 Proof of Work</p>
+                      {hasProof ? (
+                        <span className="text-xs px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300">
+                          ✓ {proofs.length} uploaded
+                        </span>
+                      ) : (
+                        <span className="text-xs px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-300">
+                          ⚠️ No proof uploaded
+                        </span>
+                      )}
+                    </div>
+                    {hasProof && (
+                      <div className="mt-2 flex gap-2">
+                        {proofs.slice(0, 3).map((proof) => (
+                          <div key={proof.id} className="relative group">
+                            {proof.file_type?.startsWith("image/") ? (
+                              <img
+                                src={`${API_BASE.replace("/api/v1", "")}/uploads/${proof.file_url.split("/").pop()}`}
+                                alt={proof.file_name}
+                                className="w-12 h-12 object-cover rounded-lg border border-purple-500/30"
+                              />
+                            ) : (
+                              <div className="w-12 h-12 rounded-lg border border-purple-500/30 bg-purple-900/20 flex items-center justify-center">
+                                <span className="text-purple-400 text-xs">📄</span>
+                              </div>
+                            )}
+                          </div>
+                        ))}
+                        {proofs.length > 3 && (
+                          <span className="text-xs text-slate-400 self-center">+{proofs.length - 3} more</span>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
           </div>
         )}
       </section>

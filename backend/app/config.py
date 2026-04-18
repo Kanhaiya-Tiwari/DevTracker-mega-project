@@ -6,6 +6,9 @@ class Settings(BaseSettings):
     redis_url: str = "redis://localhost:6379/0"
     openrouter_api_key: str = ""
     openrouter_model: str = "nvidia/nemotron-nano-9b-v2:free"
+    gemini_api_key: str = "AIzaSyBjY5iXNppgF41hruhSp6puCQNbWHvHR8M."
+    gemini_model: str = "gemini-1.5-flash"
+    use_gemini: bool = True
     jwt_secret: str = "devtrackr_secret"
     jwt_algorithm: str = "HS256"
     access_token_expire_minutes: int = 60 * 24

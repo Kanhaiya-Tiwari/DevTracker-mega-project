@@ -102,4 +102,40 @@ export const api = {
       body: { query, existing_skills: existingSkills },
     });
   },
+  // ── Blogs ────────────────────────────────────────────────
+  getBlogs(token) {
+    return request("/blogs/", { token });
+  },
+  createBlog(token, payload) {
+    return request("/blogs/", { method: "POST", token, body: payload });
+  },
+  updateBlog(token, blogId, payload) {
+    return request(`/blogs/${blogId}`, { method: "PUT", token, body: payload });
+  },
+  deleteBlog(token, blogId) {
+    return request(`/blogs/${blogId}`, { method: "DELETE", token });
+  },
+  // ── Proof of Work ────────────────────────────────────────
+  uploadProofOfWork(token, logId, file, notes = null) {
+    const formData = new FormData();
+    formData.append("file", file);
+    if (notes) formData.append("notes", notes);
+    return request(`/proof-of-work/upload?log_id=${logId}`, {
+      method: "POST",
+      token,
+      body: formData,
+    });
+  },
+  getProofOfWorkByLog(token, logId) {
+    return request(`/proof-of-work/log/${logId}`, { token });
+  },
+  getProofOfWorkBySkill(token, skillId) {
+    return request(`/proof-of-work/skill/${skillId}`, { token });
+  },
+  getUserProofOfWork(token) {
+    return request(`/proof-of-work/user`, { token });
+  },
+  deleteProofOfWork(token, proofId) {
+    return request(`/proof-of-work/${proofId}`, { method: "DELETE", token });
+  },
 };

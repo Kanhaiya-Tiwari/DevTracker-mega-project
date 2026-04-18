@@ -30,3 +30,4 @@ class User(Base):
     skills   = relationship("Skill",   back_populates="user", cascade="all,delete")
     logs     = relationship("Log",     back_populates="user", cascade="all,delete")
     insights = relationship("Insight", back_populates="user", cascade="all,delete")
+    blogs    = relationship("Blog",    back_populates="user", cascade="all,delete")

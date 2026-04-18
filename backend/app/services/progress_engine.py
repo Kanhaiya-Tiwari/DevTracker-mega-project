@@ -3,7 +3,7 @@ Math engine: progress, probability, streaks, consistency, burnout.
 Pure functions — no side effects, fully testable.
 """
 from datetime import datetime, timedelta
-from typing import List
+from typing import List, Optional
 import math
 
 def completion_probability(
@@ -56,15 +56,15 @@ def detect_burnout(logs: List[dict], skill_id: str) -> bool:
     avg_prior  = sum(l["hours"] for l in recent[:4])  / 4
     return avg_prior > 0 and (avg_recent / avg_prior) < 0.5
 
-def detect_peak_hour(logs: List[dict]) -> int | None:
-    dist: dict[int, float] = {}
+def detect_peak_hour(logs: List[dict]) -> Optional[int]:
+    dist = {}
     for l in logs:
         h = l.get("hour_of_day")
         if h is not None:
             dist[h] = dist.get(h, 0) + l["hours"]
     return max(dist, key=dist.get) if dist else None
 
-def calculate_new_streak(last_log_date: datetime | None, streak: int) -> int:
+def calculate_new_streak(last_log_date: Optional[datetime], streak: int) -> int:
     today = datetime.utcnow().date()
     if last_log_date is None:
         return 1

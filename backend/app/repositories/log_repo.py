@@ -4,6 +4,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, cast, Date, func
 
 from app.models.log import Log
+from app.schemas.log import LogRead
 
 
 async def create_log(db: AsyncSession, log: Log) -> Log:
@@ -13,23 +14,26 @@ async def create_log(db: AsyncSession, log: Log) -> Log:
     return log
 
 
-async def get_logs_for_skill(db: AsyncSession, skill_id: str) -> list[Log]:
+async def get_logs_for_skill(db: AsyncSession, skill_id: str) -> list[LogRead]:
     res = await db.execute(select(Log).where(Log.skill_id == skill_id).order_by(Log.log_date.desc()))
-    return res.scalars().all()
+    logs = res.scalars().all()
+    return [LogRead.from_orm(log) for log in logs]
 
 
-async def get_logs_for_user(db: AsyncSession, user_id: str) -> list[Log]:
+async def get_logs_for_user(db: AsyncSession, user_id: str) -> list[LogRead]:
     res = await db.execute(select(Log).where(Log.user_id == user_id).order_by(Log.log_date.desc()))
-    return res.scalars().all()
+    logs = res.scalars().all()
+    return [LogRead.from_orm(log) for log in logs]
 
 
-async def get_logs_for_skill_by_date(db: AsyncSession, skill_id: str, target_date: date) -> list[Log]:
+async def get_logs_for_skill_by_date(db: AsyncSession, skill_id: str, target_date: date) -> list[LogRead]:
     res = await db.execute(
         select(Log)
         .where(Log.skill_id == skill_id, cast(Log.log_date, Date) == target_date)
         .order_by(Log.log_date.desc())
     )
-    return res.scalars().all()
+    logs = res.scalars().all()
+    return [LogRead.from_orm(log) for log in logs]
 
 
 async def get_skill_log_dates(db: AsyncSession, skill_id: str) -> list[date]:

@@ -11,8 +11,15 @@ export default function Sidebar({ view, setView, user }) {
     {
       label: "AI & Community",
       items: [
-        { id: "chat", label: "AI Coach", icon: "🤖", desc: "Ollama-powered" },
+        { id: "chat", label: "AI Coach", icon: "🤖", desc: "Gemini-powered" },
+        { id: "blog", label: "Community", icon: "📝", desc: "Share insights" },
         { id: "leaderboard", label: "Leaderboard", icon: "🏆", desc: "Top performers" },
+      ],
+    },
+    {
+      label: "Growth",
+      items: [
+        { id: "rewards", label: "Rewards", icon: "🎁", desc: "XP & achievements" },
       ],
     },
     {

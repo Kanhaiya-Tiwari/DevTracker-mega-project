@@ -1,10 +1,12 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
 from contextlib import asynccontextmanager
 from app.database import engine, Base
-from app.routers import auth, skills, logs, insights, analytics, leaderboard, settings, chat
+from app.routers import auth, skills, logs, insights, analytics, leaderboard, settings, chat, blogs, proof_of_work
 from sqlalchemy import text
 import logging
+import os
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -56,6 +58,12 @@ app.include_router(analytics.router,   prefix="/api/v1/analytics",    tags=["ana
 app.include_router(leaderboard.router, prefix="/api/v1/leaderboard",  tags=["leaderboard"])
 app.include_router(settings.router,    prefix="/api/v1/settings",     tags=["settings"])
 app.include_router(chat.router,        prefix="/api/v1/chat",         tags=["chat"])
+app.include_router(blogs.router,       prefix="/api/v1/blogs",        tags=["blogs"])
+app.include_router(proof_of_work.router, prefix="/api/v1/proof-of-work", tags=["proof-of-work"])
+
+# Create uploads directory and mount static files
+os.makedirs("uploads", exist_ok=True)
+app.mount("/uploads", StaticFiles(directory="uploads"), name="uploads")
 
 @app.get("/")
 async def root():

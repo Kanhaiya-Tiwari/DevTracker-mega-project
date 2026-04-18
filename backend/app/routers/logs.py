@@ -68,7 +68,7 @@ async def add_log(entry: LogCreate, current_user = Depends(get_current_user), db
 
     await db.commit()
     await db.refresh(log)
-    return log
+    return LogRead.from_orm(log)
 
 
 @router.get("/skill/{skill_id}", response_model=list[LogRead])
