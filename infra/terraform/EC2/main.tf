@@ -108,10 +108,7 @@ resource "aws_security_group" "sg" {
 resource "aws_instance" "ec2" {
   ami           = "ami-0ec10929233384c7f"   # update if needed
   instance_type = var.instance_type
-  user_data = templatefile("${path.module}/userdata.sh", {
-    godaddy_api_key = var.godaddy_api_key
-    godaddy_api_secret = var.godaddy_api_secret
-  })
+  user_data = file("${path.module}/userdata.sh")
 
   subnet_id              = aws_subnet.subnet.id
   vpc_security_group_ids = [aws_security_group.sg.id]
