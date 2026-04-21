@@ -46,7 +46,9 @@ data:
             action: keep
           - source_labels: [__meta_kubernetes_pod_ip]
             target_label: __address__
-            replacement: "$1:80"
+            replacement: "$1:80/nginx_metrics"
+          - source_labels: [__meta_kubernetes_pod_name]
+            target_label: pod
 
       # ── Node Exporter (host metrics) ──
       - job_name: node-exporter

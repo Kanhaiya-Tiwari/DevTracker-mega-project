@@ -31,6 +31,16 @@ data:
             proxy_set_header Host $host;
         }
 
+        # Prometheus metrics endpoint for nginx
+        location /nginx_metrics {
+            stub_status on;
+            access_log off;
+            allow 10.0.0.0/8;
+            allow 172.16.0.0/12;
+            allow 192.168.0.0/16;
+            deny all;
+        }
+
         # Frontend SPA - serve index.html for all other routes
         location / {
             try_files $uri $uri/ /index.html;
