@@ -258,37 +258,41 @@
       debug:
         var: app_status.stdout_lines
 
-    # ── ArgoCD (idempotent) ───────────────────────────────────────────────────
-    - name: Create ArgoCD namespace (idempotent)
-      shell: |
-        KUBECONFIG=/etc/rancher/k3s/k3s.yaml kubectl create namespace argocd \
-          --dry-run=client -o yaml | KUBECONFIG=/etc/rancher/k3s/k3s.yaml kubectl apply -f -
+    # ── ArgoCD & Prometheus/Grafana ───────────────────────────────────────────
+    # NOTE: ArgoCD and Prometheus/Grafana are NOT installed on this EC2 instance.
+    # They should be installed on your own k3s cluster separately.
+    # Uncomment below if you want to install them on this EC2's k3s cluster:
 
-    - name: Install / upgrade ArgoCD
-      shell: |
-        KUBECONFIG=/etc/rancher/k3s/k3s.yaml kubectl apply -n argocd \
-          -f https://raw.githubusercontent.com/argoproj/argo-cd/stable/manifests/install.yaml
-      ignore_errors: yes
+    # - name: Create ArgoCD namespace (idempotent)
+    #   shell: |
+    #     KUBECONFIG=/etc/rancher/k3s/k3s.yaml kubectl create namespace argocd \
+    #       --dry-run=client -o yaml | KUBECONFIG=/etc/rancher/k3s/k3s.yaml kubectl apply -f -
 
-    # ── Prometheus & Grafana (idempotent) ─────────────────────────────────────
-    - name: Add Prometheus Helm repo
-      shell: |
-        helm repo add prometheus-community https://prometheus-community.github.io/helm-charts
-        helm repo update
-      environment:
-        KUBECONFIG: /etc/rancher/k3s/k3s.yaml
-      ignore_errors: yes
+    # - name: Install / upgrade ArgoCD
+    #   shell: |
+    #     KUBECONFIG=/etc/rancher/k3s/k3s.yaml kubectl apply -n argocd \
+    #       -f https://raw.githubusercontent.com/argoproj/argo-cd/stable/manifests/install.yaml
+    #   ignore_errors: yes
 
-    - name: Install Prometheus & Grafana (upgrade --install)
-      shell: |
-        helm upgrade --install monitoring prometheus-community/kube-prometheus-stack \
-          --namespace monitoring \
-          --create-namespace \
-          --set grafana.adminPassword=admin123 \
-          --timeout 10m
-      environment:
-        KUBECONFIG: /etc/rancher/k3s/k3s.yaml
-      ignore_errors: yes
+    # # ── Prometheus & Grafana (idempotent) ─────────────────────────────────────
+    # - name: Add Prometheus Helm repo
+    #   shell: |
+    #     helm repo add prometheus-community https://prometheus-community.github.io/helm-charts
+    #     helm repo update
+    #   environment:
+    #     KUBECONFIG: /etc/rancher/k3s/k3s.yaml
+    #   ignore_errors: yes
+
+    # - name: Install Prometheus & Grafana (upgrade --install)
+    #   shell: |
+    #     helm upgrade --install monitoring prometheus-community/kube-prometheus-stack \
+    #       --namespace monitoring \
+    #       --create-namespace \
+    #       --set grafana.adminPassword=admin123 \
+    #       --timeout 10m
+    #   environment:
+    #     KUBECONFIG: /etc/rancher/k3s/k3s.yaml
+    #   ignore_errors: yes
 
     - name: Display Access Information
       debug:
@@ -305,13 +309,8 @@
           Port-forward (if needed):
           kubectl port-forward svc/devtracker-frontend-service 8080:80 -n devtracker
 
-          ArgoCD UI:
-          kubectl port-forward svc/argocd-server -n argocd 8443:443
-          Default creds: admin / (kubectl get secret argocd-initial-admin-secret -n argocd ...)
-
-          Grafana UI:
-          kubectl port-forward svc/monitoring-grafana -n monitoring 3000:80
-          Default creds: admin / admin123
+          NOTE: ArgoCD and Prometheus/Grafana are NOT installed on this EC2 instance.
+          Install them on your own k3s cluster separately.
 
           Full bootstrap log:
           sudo cat /var/log/devtracker-bootstrap.log

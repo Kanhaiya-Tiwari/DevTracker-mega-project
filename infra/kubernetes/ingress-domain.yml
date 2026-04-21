@@ -4,31 +4,15 @@ metadata:
   name: devtracker-ingress
   namespace: devtracker
   annotations:
-    nginx.ingress.kubernetes.io/rewrite-target: /
-    nginx.ingress.kubernetes.io/proxy-body-size: "50m"
-    # Uncomment below for SSL/TLS with cert-manager
-    # cert-manager.io/cluster-issuer: "letsencrypt-prod"
-    # nginx.ingress.kubernetes.io/ssl-redirect: "true"
+    nginx.ingress.kubernetes.io/use-regex: "true"
 spec:
   ingressClassName: nginx
-  # Uncomment below for HTTPS
-  # tls:
-  # - hosts:
-  #   - YOUR-DOMAIN-HERE.com
-  #   secretName: devtracker-tls
   rules:
-  - host: devtracker.buildwithkanha.shop # <-- REPLACE WITH YOUR DOMAIN
+  - host: buildwithkanha.shop  # <--- Your domain
     http:
       paths:
-      - path: /api/v1
-        pathType: Prefix
-        backend:
-          service:
-            name: devtracker-backend-service
-            port:
-              number: 8000
-      - path: /api
-        pathType: Prefix
+      - path: /api/v1(/|$)(.*)
+        pathType: ImplementationSpecific
         backend:
           service:
             name: devtracker-backend-service
@@ -41,32 +25,3 @@ spec:
             name: devtracker-frontend-service
             port:
               number: 80
----
-# Alternative: EC2 without domain (use public IP)
-# apiVersion: networking.k8s.io/v1
-# kind: Ingress
-# metadata:
-#   name: devtracker-ingress
-#   namespace: devtracker
-#   annotations:
-#     nginx.ingress.kubernetes.io/rewrite-target: /
-#     nginx.ingress.kubernetes.io/proxy-body-size: "50m"
-# spec:
-#   ingressClassName: nginx
-#   rules:
-#   - http:
-#       paths:
-#       - path: /api/v1
-#         pathType: Prefix
-#         backend:
-#           service:
-#             name: devtracker-backend-service
-#             port:
-#               number: 8000
-#       - path: /
-#         pathType: Prefix
-#         backend:
-#           service:
-#             name: devtracker-frontend-service
-#             port:
-#               number: 80
