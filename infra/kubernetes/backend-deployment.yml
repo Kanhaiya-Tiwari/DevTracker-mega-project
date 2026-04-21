@@ -20,7 +20,8 @@ spec:
     spec:
       containers:
       - name: backend
-        image: kanhaiyatiwari/devtracker-backend:latest
+        image: devtracker-backend:latest
+        imagePullPolicy: Never
         ports:
         - containerPort: 8000
           name: http

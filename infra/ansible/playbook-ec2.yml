@@ -41,6 +41,14 @@
       args:
         creates: /usr/local/bin/helm
 
+    - name: Install Docker
+      shell: |
+        curl -fsSL https://get.docker.com -o get-docker.sh
+        sh get-docker.sh
+        usermod -aG docker ubuntu
+      args:
+        creates: /usr/bin/docker
+
     - name: Install k3s (lightweight Kubernetes)
       shell: |
         PUBLIC_IP=$(curl -s http://169.254.169.254/latest/meta-data/public-ipv4)
@@ -106,12 +114,40 @@
         chmod 600 /home/ubuntu/.kube/config
         echo 'export KUBECONFIG=/home/ubuntu/.kube/config' >> /home/ubuntu/.bashrc
 
+    - name: Build Docker images
+      shell: |
+        cd /home/ubuntu/DevTracker-mega-project/backend
+        docker build -t devtracker-backend:latest .
+        docker save devtracker-backend:latest -o /tmp/backend.tar
+        cd /home/ubuntu/DevTracker-mega-project/frontend
+        docker build -t devtracker-frontend:latest .
+        docker save devtracker-frontend:latest -o /tmp/frontend.tar
+      become_user: ubuntu
+
+    - name: Load images into k3s
+      shell: |
+        k3s ctr images import /tmp/backend.tar
+        k3s ctr images import /tmp/frontend.tar
+
+    - name: Create DevTracker secrets
+      shell: |
+        kubectl create secret generic devtracker-secrets -n devtracker \
+          --from-literal=postgres-user=devtrackr \
+          --from-literal=postgres-password=devtrackr \
+          --from-literal=JWT_SECRET=devtrackr_secret \
+          --from-literal=DATABASE_URL="postgresql+asyncpg://devtrackr:devtrackr@postgres:5432/devtrackr" \
+          --from-literal=REDIS_URL="redis://redis:6379/0" \
+          --from-literal=OPENROUTER_API_KEY=your_key_here \
+          --from-literal=OPENROUTER_MODEL="nvidia/nemotron-nano-9b-v2:free"
+      environment:
+        KUBECONFIG: /home/ubuntu/.kube/config
+      ignore_errors: yes
+
     - name: Deploy DevTracker Application
       shell: |
         cd /home/ubuntu/DevTracker-mega-project/infra/kubernetes
         kubectl apply -f namespace.yml
         kubectl apply -f configmap.yml
-        kubectl apply -f secrets.yml
         kubectl apply -f postgres-statefulset.yml
         kubectl apply -f postgres-service.yml
         kubectl apply -f redis-statefulset.yml
@@ -123,42 +159,42 @@
         kubectl apply -f nginx-configmap.yml
         kubectl apply -f ingress-domain.yml
       environment:
-        KUBECONFIG: /etc/rancher/k3s/k3s.yaml
+        KUBECONFIG: /home/ubuntu/.kube/config
       become_user: ubuntu
 
     - name: Wait for Database Pods
       shell: |
         kubectl wait --for=condition=ready pod -l component=database -n devtracker --timeout=300s
       environment:
-        KUBECONFIG: /etc/rancher/k3s/k3s.yaml
+        KUBECONFIG: /home/ubuntu/.kube/config
       ignore_errors: yes
 
     - name: Wait for Cache Pods
       shell: |
         kubectl wait --for=condition=ready pod -l component=cache -n devtracker --timeout=300s
       environment:
-        KUBECONFIG: /etc/rancher/k3s/k3s.yaml
+        KUBECONFIG: /home/ubuntu/.kube/config
       ignore_errors: yes
 
     - name: Wait for Backend Pods
       shell: |
         kubectl wait --for=condition=ready pod -l component=backend -n devtracker --timeout=300s
       environment:
-        KUBECONFIG: /etc/rancher/k3s/k3s.yaml
+        KUBECONFIG: /home/ubuntu/.kube/config
       ignore_errors: yes
 
     - name: Wait for Frontend Pods
       shell: |
         kubectl wait --for=condition=ready pod -l component=frontend -n devtracker --timeout=300s
       environment:
-        KUBECONFIG: /etc/rancher/k3s/k3s.yaml
+        KUBECONFIG: /home/ubuntu/.kube/config
       ignore_errors: yes
 
     - name: Get Application Status
       shell: |
         kubectl get all -n devtracker
       environment:
-        KUBECONFIG: /etc/rancher/k3s/k3s.yaml
+        KUBECONFIG: /home/ubuntu/.kube/config
       register: app_status
 
     - name: Display Application Status
@@ -181,8 +217,12 @@
       shell: |
         kubectl create namespace argocd
         kubectl apply -n argocd -f https://raw.githubusercontent.com/argoproj/argo-cd/stable/manifests/install.yaml
+      environment:
+        KUBECONFIG: /home/ubuntu/.kube/config
 
     - name: Install Prometheus & Grafana
       shell: |
         helm repo add prometheus-community https://prometheus-community.github.io/helm-charts
         helm install monitoring prometheus-community/kube-prometheus-stack
+      environment:
+        KUBECONFIG: /home/ubuntu/.kube/config
