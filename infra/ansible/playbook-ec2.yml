@@ -1,0 +1,175 @@
+---
+- hosts: localhost
+  become: true
+  gather_facts: yes
+
+  tasks:
+    - name: Update system packages
+      apt:
+        update_cache: yes
+        upgrade: yes
+
+    - name: Install required packages
+      apt:
+        name:
+          - curl
+          - git
+          - unzip
+          - jq
+        state: present
+
+    - name: Install AWS CLI v2
+      shell: |
+        curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip"
+        unzip -q awscliv2.zip
+        ./aws/install --update
+        rm -rf awscliv2.zip aws
+      args:
+        creates: /usr/local/bin/aws
+
+    - name: Install kubectl
+      shell: |
+        curl -LO "https://dl.k8s.io/release/$(curl -L -s https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl"
+        install -o root -g root -m 0755 kubectl /usr/local/bin/kubectl
+        rm kubectl
+      args:
+        creates: /usr/local/bin/kubectl
+
+    - name: Install Helm
+      shell: |
+        curl https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 | bash
+      args:
+        creates: /usr/local/bin/helm
+
+    - name: Verify k3s is running
+      command: kubectl get nodes
+      environment:
+        KUBECONFIG: /etc/rancher/k3s/k3s.yaml
+      register: k3s_status
+      ignore_errors: yes
+
+    - name: Display k3s status
+      debug:
+        var: k3s_status.stdout_lines
+
+    - name: Install NGINX Ingress Controller (if not installed)
+      shell: |
+        kubectl apply -f https://raw.githubusercontent.com/kubernetes/ingress-nginx/controller-v1.8.1/deploy/static/provider/cloud/deploy.yaml
+      environment:
+        KUBECONFIG: /etc/rancher/k3s/k3s.yaml
+      when: k3s_status.rc == 0
+
+    - name: Wait for Ingress Controller
+      shell: |
+        kubectl wait --namespace ingress-nginx \
+          --for=condition=ready pod \
+          --selector=app.kubernetes.io/component=controller \
+          --timeout=300s
+      environment:
+        KUBECONFIG: /etc/rancher/k3s/k3s.yaml
+      when: k3s_status.rc == 0
+
+    - name: Get EC2 Public IP
+      shell: curl -s http://169.254.169.254/latest/meta-data/public-ipv4
+      register: ec2_public_ip
+      ignore_errors: yes
+
+    - name: Display EC2 Public IP
+      debug:
+        msg: "EC2 Public IP: {{ ec2_public_ip.stdout }}"
+
+    - name: Setup kubectl for ubuntu user
+      shell: |
+        mkdir -p /home/ubuntu/.kube
+        cp /etc/rancher/k3s/k3s.yaml /home/ubuntu/.kube/config
+        chown -R ubuntu:ubuntu /home/ubuntu/.kube
+        chmod 600 /home/ubuntu/.kube/config
+        echo 'export KUBECONFIG=/home/ubuntu/.kube/config' >> /home/ubuntu/.bashrc
+
+    - name: Clone DevTracker repository
+      git:
+        repo: https://github.com/Kanhaiya-Tiwari/DevTracker-mega-project.git
+        dest: /home/ubuntu/DevTracker-mega-project
+        version: master
+      become_user: ubuntu
+
+    - name: Deploy DevTracker Application
+      shell: |
+        cd /home/ubuntu/DevTracker-mega-project/infra/kubernetes
+        kubectl apply -f namespace.yml
+        kubectl apply -f configmap.yml
+        kubectl apply -f secrets.yml
+        kubectl apply -f postgres-statefulset.yml
+        kubectl apply -f postgres-service.yml
+        kubectl apply -f redis-statefulset.yml
+        kubectl apply -f redis-service.yml
+        kubectl apply -f backend-deployment.yml
+        kubectl apply -f backend-service.yml
+        kubectl apply -f frontend-deployment.yml
+        kubectl apply -f frontend-service.yml
+        kubectl apply -f nginx-configmap.yml
+        kubectl apply -f ingress-domain.yml
+      environment:
+        KUBECONFIG: /etc/rancher/k3s/k3s.yaml
+      become_user: ubuntu
+
+    - name: Wait for Database Pods
+      shell: |
+        kubectl wait --for=condition=ready pod -l component=database -n devtracker --timeout=300s
+      environment:
+        KUBECONFIG: /etc/rancher/k3s/k3s.yaml
+      ignore_errors: yes
+
+    - name: Wait for Cache Pods
+      shell: |
+        kubectl wait --for=condition=ready pod -l component=cache -n devtracker --timeout=300s
+      environment:
+        KUBECONFIG: /etc/rancher/k3s/k3s.yaml
+      ignore_errors: yes
+
+    - name: Wait for Backend Pods
+      shell: |
+        kubectl wait --for=condition=ready pod -l component=backend -n devtracker --timeout=300s
+      environment:
+        KUBECONFIG: /etc/rancher/k3s/k3s.yaml
+      ignore_errors: yes
+
+    - name: Wait for Frontend Pods
+      shell: |
+        kubectl wait --for=condition=ready pod -l component=frontend -n devtracker --timeout=300s
+      environment:
+        KUBECONFIG: /etc/rancher/k3s/k3s.yaml
+      ignore_errors: yes
+
+    - name: Get Application Status
+      shell: |
+        kubectl get all -n devtracker
+      environment:
+        KUBECONFIG: /etc/rancher/k3s/k3s.yaml
+      register: app_status
+
+    - name: Display Application Status
+      debug:
+        var: app_status.stdout_lines
+
+    - name: Display Access Information
+      debug:
+        msg: |
+          =========================================
+          DevTracker Deployment Complete!
+          =========================================
+          Access your application at:
+          http://{{ ec2_public_ip.stdout }}
+          
+          Or using port-forward:
+          kubectl port-forward svc/devtracker-frontend-service 8080:80 -n devtracker
+          =========================================
+    - name: Install ArgoCD
+      shell: |
+        kubectl create namespace argocd
+        kubectl apply -n argocd -f https://raw.githubusercontent.com/argoproj/argo-cd/stable/manifests/install.yaml
+
+    - name: Install Prometheus & Grafana
+      shell: |
+        helm repo add prometheus-community https://prometheus-community.github.io/helm-charts
+        helm install monitoring prometheus-community/kube-prometheus-stack
