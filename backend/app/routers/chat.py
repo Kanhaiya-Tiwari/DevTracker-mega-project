@@ -10,14 +10,15 @@ router = APIRouter()
 settings = Settings()
 
 OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions"
-GEMINI_URL = "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={api_key}"
 
 
 def _openrouter_headers():
+    api_key = settings.openrouter_api_key
+    print(f"OpenRouter API key length: {len(api_key)}")
+    print(f"OpenRouter API key prefix: {api_key[:10]}...")
+    
     return {
-        "Authorization": f"Bearer {settings.openrouter_api_key}",
-        "HTTP-Referer": "https://devtrackr.io",
-        "X-OpenRouter-Title": "DevTrackr",
+        "Authorization": f"Bearer {api_key}",
         "Content-Type": "application/json",
     }
 
@@ -30,63 +31,37 @@ async def _openrouter_chat(prompt: str, *, timeout: int = 60, json_mode: bool = 
     }
     if json_mode:
         body["response_format"] = {"type": "json_object"}
+    
     try:
+        headers = _openrouter_headers()
+        print(f"OpenRouter request headers: {headers}")
+        print(f"OpenRouter request body: {body}")
+        
         async with httpx.AsyncClient(timeout=timeout) as client:
-            resp = await client.post(OPENROUTER_URL, headers=_openrouter_headers(), json=body)
-            if resp.status_code == 200:
-                text = resp.json()["choices"][0]["message"]["content"].strip()
-                if text and len(text) > 5:
-                    return text
-    except Exception:
-        pass
-    return None
-
-
-async def _gemini_chat(prompt: str, *, timeout: int = 60, json_mode: bool = False) -> Optional[str]:
-    """Call Gemini API and return the assistant message text, or None on failure."""
-    url = GEMINI_URL.format(model=settings.gemini_model, api_key=settings.gemini_api_key)
-    body = {
-        "contents": [{"parts": [{"text": prompt}]}],
-        "generationConfig": {
-            "temperature": 0.7,
-            "topK": 40,
-            "topP": 0.95,
-            "maxOutputTokens": 8192,
-        }
-    }
-    if json_mode:
-        body["generationConfig"]["responseMimeType"] = "application/json"
-
-    try:
-        async with httpx.AsyncClient(timeout=timeout) as client:
-            resp = await client.post(url, json=body)
+            resp = await client.post(OPENROUTER_URL, headers=headers, json=body)
+            print(f"OpenRouter response status: {resp.status_code}")
+            print(f"OpenRouter response: {resp.text}")
+            
             if resp.status_code == 200:
                 data = resp.json()
-                # Handle Gemini API response structure
-                if "candidates" in data and len(data["candidates"]) > 0:
-                    candidate = data["candidates"][0]
-                    if "content" in candidate and "parts" in candidate["content"]:
-                        parts = candidate["content"]["parts"]
-                        if len(parts) > 0 and "text" in parts[0]:
-                            text = parts[0]["text"].strip()
-                            if text and len(text) > 5:
-                                return text
+                if "choices" in data and len(data["choices"]) > 0:
+                    text = data["choices"][0]["message"]["content"].strip()
+                    if text and len(text) > 5:
+                        return text
+            else:
+                print(f"OpenRouter error response: {resp.text}")
     except Exception as e:
-        print(f"Gemini API error: {e}")
+        print(f"OpenRouter API error: {e}")
         pass
     return None
 
 
 async def _ai_chat(prompt: str, *, timeout: int = 60, json_mode: bool = False) -> Optional[str]:
-    """Route to either Gemini or OpenRouter based on settings."""
-    if settings.use_gemini and settings.gemini_api_key:
-        result = await _gemini_chat(prompt, timeout=timeout, json_mode=json_mode)
-        if result:
-            return result
-    # Fallback to OpenRouter
+    """Route to OpenRouter."""
     if settings.openrouter_api_key:
         return await _openrouter_chat(prompt, timeout=timeout, json_mode=json_mode)
     return None
+
 
 FALLBACK_TIPS = [
     "Break your learning into 25-minute Pomodoro sessions. Short bursts beat marathon sessions for retention and consistency.",
@@ -117,14 +92,14 @@ class DailyTipRequest(BaseModel):
 
 @router.post("/")
 async def chat(body: ChatMessage, current_user=Depends(get_current_user)):
-    """AI-powered chat for DevTrackr coaching using Gemini or OpenRouter"""
+    """AI-powered chat for DevTrackr coaching using OpenRouter"""
     history_text = ""
     if body.history:
         for msg in body.history[-6:]:  # Last 3 exchanges
             role = "User" if msg.get("role") == "user" else "Coach"
             history_text += f"{role}: {msg.get('text', '')}\n"
 
-    prompt = f"""You are DevTrackr AI Coach — India's smartest skill-learning assistant.
+    prompt = f"""You are DevTrackr AI Coach.
 You are coaching {current_user.name} (Level {current_user.level}, {current_user.streak} day streak).
 Current skill: {body.skill_name or 'General learning'}
 Context: {body.context or 'none'}
@@ -139,16 +114,14 @@ Coach:"""
 
     reply = await _ai_chat(prompt, timeout=60)
     if reply and len(reply) > 10:
-        model_name = settings.gemini_model if settings.use_gemini else settings.openrouter_model
-        powered_by = "gemini" if settings.use_gemini else "openrouter"
-        return {"reply": reply, "model": model_name, "powered_by": powered_by}
+        return {"reply": reply, "model": settings.openrouter_model, "powered_by": "openrouter"}
 
     # Smart fallback based on message content
     msg_lower = body.message.lower()
     if any(w in msg_lower for w in ["stuck", "help", "how", "what", "explain"]):
-        reply = f"For {body.skill_name or 'this skill'}: identify the exact point you're stuck on, then spend 20 minutes on just that concept. Google '[topic] explained in 5 minutes' — visual explanations break most blocks instantly."
+        reply = f"For {body.skill_name or 'this skill'}: identify the exact point you're stuck on, then spend 20 minutes on just that concept. Google '[topic] explained in 5 minutes' - visual explanations break most blocks instantly."
     elif any(w in msg_lower for w in ["motivation", "tired", "quit", "give up", "hard"]):
-        reply = f"Every expert was once a complete beginner. You have {current_user.streak} days of proof that you can show up. The people who win are not the smartest — they are the most consistent. Today counts."
+        reply = f"Every expert was once a complete beginner. You have {current_user.streak} days of proof that you can show up. The people who win are not the smartest - they are the most consistent. Today counts."
     elif any(w in msg_lower for w in ["time", "busy", "schedule", "plan"]):
         reply = "Block 45 minutes every morning before your day starts. Morning sessions have the highest focus quality and zero interruptions. Even 3 sessions per week beats zero sessions perfectly planned."
     else:
@@ -170,7 +143,7 @@ Tip:"""
 
     tip = await _ai_chat(prompt, timeout=60)
     if tip and len(tip) > 20:
-        model_name = settings.gemini_model if settings.use_gemini else settings.openrouter_model
+        model_name = settings.openrouter_model
         return {"tip": tip, "model": model_name}
 
     return {"tip": random.choice(FALLBACK_TIPS), "model": "fallback"}

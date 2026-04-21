@@ -1,4 +1,4 @@
-from sqlalchemy import Column, String, Float, DateTime, Integer, ForeignKey, Enum
+from sqlalchemy import Column, String, Float, DateTime, Integer, ForeignKey, Enum, Boolean
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import relationship
 from app.database import Base
@@ -22,6 +22,7 @@ class Log(Base):
     xp_earned  = Column(Integer, default=0)
     log_date   = Column(DateTime, default=datetime.utcnow, index=True)
     hour_of_day = Column(Integer, nullable=True)  # 0-23, for peak time detection
+    proof_of_work_required = Column(Boolean, default=True)  # Whether proof of work is required for this session
 
     user  = relationship("User",  back_populates="logs")
     skill = relationship("Skill", back_populates="logs")

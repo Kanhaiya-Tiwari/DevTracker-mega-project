@@ -41,6 +41,7 @@ async def add_log(entry: LogCreate, current_user = Depends(get_current_user), db
         xp_earned=xp,
         log_date=now,
         hour_of_day=now.hour,
+        proof_of_work_required=True,  # Mark that proof of work is required
     )
     db.add(log)
 

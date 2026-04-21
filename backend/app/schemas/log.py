@@ -21,6 +21,7 @@ class LogRead(BaseModel):
     xp_earned: int
     log_date: str
     hour_of_day: Optional[int]
+    proof_of_work_required: bool = True
 
     class Config:
         from_attributes = True
@@ -35,5 +36,6 @@ class LogRead(BaseModel):
             notes=obj.notes,
             xp_earned=obj.xp_earned,
             log_date=obj.log_date.isoformat() if obj.log_date else None,
-            hour_of_day=obj.hour_of_day
+            hour_of_day=obj.hour_of_day,
+            proof_of_work_required=obj.proof_of_work_required
         )
