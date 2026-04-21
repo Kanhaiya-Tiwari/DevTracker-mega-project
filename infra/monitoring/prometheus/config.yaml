@@ -23,7 +23,7 @@ data:
         kubernetes_sd_configs:
           - role: pod
             namespaces:
-              names: [devtrackr]
+              names: [devtracker]
         relabel_configs:
           - source_labels: [__meta_kubernetes_pod_label_app]
             regex: backend
@@ -39,7 +39,7 @@ data:
         kubernetes_sd_configs:
           - role: pod
             namespaces:
-              names: [devtrackr]
+              names: [devtracker]
         relabel_configs:
           - source_labels: [__meta_kubernetes_pod_label_app]
             regex: frontend
@@ -112,7 +112,7 @@ data:
               summary: "P95 latency above 2 seconds"
 
           - alert: PodCrashLooping
-            expr: rate(kube_pod_container_status_restarts_total{namespace="devtrackr"}[15m]) > 0
+            expr: rate(kube_pod_container_status_restarts_total{namespace="devtracker"}[15m]) > 0
             for: 5m
             labels:
               severity: critical
@@ -121,8 +121,8 @@ data:
 
           - alert: HighMemoryUsage
             expr: |
-              container_memory_usage_bytes{namespace="devtrackr"}
-              / container_spec_memory_limit_bytes{namespace="devtrackr"} > 0.9
+              container_memory_usage_bytes{namespace="devtracker"}
+              / container_spec_memory_limit_bytes{namespace="devtracker"} > 0.9
             for: 5m
             labels:
               severity: warning
@@ -131,7 +131,7 @@ data:
 
           - alert: HighCPUUsage
             expr: |
-              rate(container_cpu_usage_seconds_total{namespace="devtrackr"}[5m]) > 0.8
+              rate(container_cpu_usage_seconds_total{namespace="devtracker"}[5m]) > 0.8
             for: 5m
             labels:
               severity: warning

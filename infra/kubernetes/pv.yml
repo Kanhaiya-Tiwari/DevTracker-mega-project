@@ -1,4 +1,9 @@
 ---
+# NOTE: These PV/PVC files are OPTIONAL for k3s.
+# k3s has built-in dynamic provisioning with the "local-path" storage class.
+# The StatefulSets already use volumeClaimTemplates which will automatically create PVCs.
+# Only use these files if you need manual PV management or for clusters without dynamic provisioning.
+
 # Persistent Volume for PostgreSQL
 apiVersion: v1
 kind: PersistentVolume
@@ -17,14 +22,6 @@ spec:
   persistentVolumeReclaimPolicy: Retain
   hostPath:
     path: /data/postgres
-  nodeAffinity:
-    required:
-      nodeSelectorTerms:
-      - matchExpressions:
-        - key: kubernetes.io/hostname
-          operator: In
-          values:
-          - kind  # Change this to your node name if using a different cluster
 
 ---
 # Persistent Volume for Redis (optional - for Redis persistence)
@@ -45,11 +42,3 @@ spec:
   persistentVolumeReclaimPolicy: Retain
   hostPath:
     path: /data/redis
-  nodeAffinity:
-    required:
-      nodeSelectorTerms:
-      - matchExpressions:
-        - key: kubernetes.io/hostname
-          operator: In
-          values:
-          - kind # Change this to your node name if using a different cluster

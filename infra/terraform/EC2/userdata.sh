@@ -9,7 +9,12 @@ apt update -y
 apt install -y software-properties-common curl git
 
 # Install k3s (lightweight Kubernetes)
-curl -sfL https://get.k3s.io | INSTALL_K3S_EXEC="server --tls-san $(curl -s http://169.254.169.254/latest/meta-data/public-ipv4)" sh -
+PUBLIC_IP=$(curl -s http://169.254.169.254/latest/meta-data/public-ipv4)
+if [ -n "$PUBLIC_IP" ]; then
+    curl -sfL https://get.k3s.io | INSTALL_K3S_EXEC="server --tls-san $PUBLIC_IP" sh -
+else
+    curl -sfL https://get.k3s.io | sh -
+fi
 
 # Setup kubectl for ubuntu user
 mkdir -p /home/ubuntu/.kube

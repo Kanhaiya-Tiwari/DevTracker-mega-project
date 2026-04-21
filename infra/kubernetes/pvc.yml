@@ -1,4 +1,9 @@
 ---
+# NOTE: These PV/PVC files are OPTIONAL for k3s.
+# k3s has built-in dynamic provisioning with the "local-path" storage class.
+# The StatefulSets already use volumeClaimTemplates which will automatically create PVCs.
+# Only use these files if you need manual PV management or for clusters without dynamic provisioning.
+
 # Persistent Volume Claim for PostgreSQL
 apiVersion: v1
 kind: PersistentVolumeClaim

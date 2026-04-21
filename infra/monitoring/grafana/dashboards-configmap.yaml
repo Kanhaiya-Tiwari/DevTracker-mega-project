@@ -177,7 +177,7 @@ data:
           "datasource": { "type": "prometheus", "uid": "prometheus" },
           "targets": [
             {
-              "expr": "rate(container_cpu_usage_seconds_total{namespace=\"devtrackr\",container=\"backend\"}[5m])",
+              "expr": "rate(container_cpu_usage_seconds_total{namespace=\"devtracker\",container=\"backend\"}[5m])",
               "legendFormat": "{{pod}}"
             }
           ],
@@ -190,7 +190,7 @@ data:
           "datasource": { "type": "prometheus", "uid": "prometheus" },
           "targets": [
             {
-              "expr": "container_memory_usage_bytes{namespace=\"devtrackr\",container=\"backend\"}",
+              "expr": "container_memory_usage_bytes{namespace=\"devtracker\",container=\"backend\"}",
               "legendFormat": "{{pod}}"
             }
           ],
@@ -203,7 +203,7 @@ data:
           "datasource": { "type": "prometheus", "uid": "prometheus" },
           "targets": [
             {
-              "expr": "kube_pod_container_status_restarts_total{namespace=\"devtrackr\"}",
+              "expr": "kube_pod_container_status_restarts_total{namespace=\"devtracker\"}",
               "legendFormat": "{{pod}} / {{container}}"
             }
           ],
@@ -216,7 +216,7 @@ data:
           "datasource": { "type": "prometheus", "uid": "prometheus" },
           "targets": [
             {
-              "expr": "rate(container_cpu_usage_seconds_total{namespace=\"devtrackr\",container=\"frontend\"}[5m])",
+              "expr": "rate(container_cpu_usage_seconds_total{namespace=\"devtracker\",container=\"frontend\"}[5m])",
               "legendFormat": "{{pod}}"
             }
           ],
@@ -229,7 +229,7 @@ data:
           "datasource": { "type": "prometheus", "uid": "prometheus" },
           "targets": [
             {
-              "expr": "container_memory_usage_bytes{namespace=\"devtrackr\",container=\"frontend\"}",
+              "expr": "container_memory_usage_bytes{namespace=\"devtracker\",container=\"frontend\"}",
               "legendFormat": "{{pod}}"
             }
           ],
@@ -281,11 +281,11 @@ data:
           "datasource": { "type": "prometheus", "uid": "prometheus" },
           "targets": [
             {
-              "expr": "kube_horizontalpodautoscaler_status_desired_replicas{horizontalpodautoscaler=\"backend-hpa\",namespace=\"devtrackr\"}",
+              "expr": "kube_horizontalpodautoscaler_status_desired_replicas{horizontalpodautoscaler=\"backend-hpa\",namespace=\"devtracker\"}",
               "legendFormat": "Desired"
             },
             {
-              "expr": "kube_horizontalpodautoscaler_status_current_replicas{horizontalpodautoscaler=\"backend-hpa\",namespace=\"devtrackr\"}",
+              "expr": "kube_horizontalpodautoscaler_status_current_replicas{horizontalpodautoscaler=\"backend-hpa\",namespace=\"devtracker\"}",
               "legendFormat": "Current"
             }
           ],
@@ -298,11 +298,11 @@ data:
           "datasource": { "type": "prometheus", "uid": "prometheus" },
           "targets": [
             {
-              "expr": "kube_horizontalpodautoscaler_status_desired_replicas{horizontalpodautoscaler=\"frontend-hpa\",namespace=\"devtrackr\"}",
+              "expr": "kube_horizontalpodautoscaler_status_desired_replicas{horizontalpodautoscaler=\"frontend-hpa\",namespace=\"devtracker\"}",
               "legendFormat": "Desired"
             },
             {
-              "expr": "kube_horizontalpodautoscaler_status_current_replicas{horizontalpodautoscaler=\"frontend-hpa\",namespace=\"devtrackr\"}",
+              "expr": "kube_horizontalpodautoscaler_status_current_replicas{horizontalpodautoscaler=\"frontend-hpa\",namespace=\"devtracker\"}",
               "legendFormat": "Current"
             }
           ],
