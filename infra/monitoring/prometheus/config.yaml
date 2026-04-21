@@ -26,7 +26,7 @@ data:
               names: [devtracker]
         relabel_configs:
           - source_labels: [__meta_kubernetes_pod_label_app]
-            regex: backend
+            regex: devtracker-backend
             action: keep
           - source_labels: [__meta_kubernetes_pod_ip]
             target_label: __address__
@@ -42,11 +42,11 @@ data:
               names: [devtracker]
         relabel_configs:
           - source_labels: [__meta_kubernetes_pod_label_app]
-            regex: frontend
+            regex: devtracker-frontend
             action: keep
           - source_labels: [__meta_kubernetes_pod_ip]
             target_label: __address__
-            replacement: "$1:3000"
+            replacement: "$1:80"
 
       # ── Node Exporter (host metrics) ──
       - job_name: node-exporter
