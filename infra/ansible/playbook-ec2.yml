@@ -59,10 +59,16 @@
     - name: Install k3s (lightweight Kubernetes)
       shell: |
         PUBLIC_IP=$(curl -s http://169.254.169.254/latest/meta-data/public-ipv4)
+        if [ -z "$PUBLIC_IP" ]; then
+            # Try IMDSv2 if v1 fails
+            TOKEN=$(curl -s -X PUT "http://169.254.169.254/latest/api/token" -H "X-aws-ec2-metadata-token-ttl-seconds: 21600")
+            PUBLIC_IP=$(curl -s -H "X-aws-ec2-metadata-token: $TOKEN" http://169.254.169.254/latest/meta-data/public-ipv4)
+        fi
+        
         if [ -n "$PUBLIC_IP" ]; then
-            curl -sfL https://get.k3s.io | INSTALL_K3S_EXEC="server --tls-san $PUBLIC_IP" sh -
+            curl -sfL https://get.k3s.io | INSTALL_K3S_EXEC="server --tls-san $PUBLIC_IP --disable traefik --disable servicelb" sh -
         else
-            curl -sfL https://get.k3s.io | sh -
+            curl -sfL https://get.k3s.io | INSTALL_K3S_EXEC="server --disable traefik --disable servicelb" sh -
         fi
       args:
         creates: /usr/local/bin/k3s
@@ -125,6 +131,15 @@
       shell: |
         KUBECONFIG=/etc/rancher/k3s/k3s.yaml kubectl apply -f \
           https://raw.githubusercontent.com/kubernetes/ingress-nginx/controller-v1.8.1/deploy/static/provider/cloud/deploy.yaml
+
+    - name: Patch NGINX Ingress to use HostNetwork (required for bypass svclb on port 80)
+      shell: |
+        KUBECONFIG=/etc/rancher/k3s/k3s.yaml kubectl patch deployment -n ingress-nginx ingress-nginx-controller \
+          --patch '{"spec": {"template": {"spec": {"hostNetwork": true, "dnsPolicy": "ClusterFirstWithHostNet"}}}}'
+        
+        # Change service type to ClusterIP to avoid conflict with host ports
+        KUBECONFIG=/etc/rancher/k3s/k3s.yaml kubectl patch svc -n ingress-nginx ingress-nginx-controller \
+          --patch '{"spec": {"type": "ClusterIP"}}'
 
     - name: Wait for NGINX Ingress Controller to be ready
       shell: |

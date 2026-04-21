@@ -8,14 +8,21 @@ metadata:
   annotations:
     nginx.ingress.kubernetes.io/proxy-body-size: "50m"
     nginx.ingress.kubernetes.io/proxy-read-timeout: "300"
-    nginx.ingress.kubernetes.io/proxy-connect-timeout: "60"
+    nginx.ingress.kubernetes.io/use-regex: "true"
 spec:
   ingressClassName: nginx
   rules:
   - http:
       paths:
-      - path: /api
-        pathType: Prefix
+      - path: /api/v1(/|$)(.*)
+        pathType: ImplementationSpecific
+        backend:
+          service:
+            name: devtracker-backend-service
+            port:
+              number: 8000
+      - path: /health
+        pathType: Exact
         backend:
           service:
             name: devtracker-backend-service
