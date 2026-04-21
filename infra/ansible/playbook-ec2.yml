@@ -269,6 +269,11 @@
         KUBECONFIG=/etc/rancher/k3s/k3s.yaml kubectl apply -n argocd \
           -f https://raw.githubusercontent.com/argoproj/argo-cd/stable/manifests/install.yaml
 
+    - name: Patch ArgoCD service to NodePort
+      shell: |
+        KUBECONFIG=/etc/rancher/k3s/k3s.yaml kubectl patch svc argocd-server -n argocd \
+          --patch '{"spec": {"type": "NodePort", "ports": [{"name": "https", "nodePort": 30443, "port": 443, "targetPort": 443}]}}'
+
     - name: Wait for ArgoCD
       shell: |
         KUBECONFIG=/etc/rancher/k3s/k3s.yaml kubectl wait --for=condition=ready pod \
@@ -337,10 +342,10 @@
           ssh -i Devtracker.pem ubuntu@{{ ec2_public_ip.stdout }}
 
           ArgoCD:
-          kubectl port-forward svc/argocd-server -n argocd 8443:443
-          URL: https://localhost:8443 (from local machine)
+          URL: https://{{ ec2_public_ip.stdout }}:30443
           Get password: kubectl -n argocd get secret argocd-initial-admin-secret -o jsonpath="{.data.password}" | base64 -d
           Username: admin
+          Or port-forward: kubectl port-forward svc/argocd-server -n argocd 8443:443
 
           Prometheus:
           URL: http://{{ ec2_public_ip.stdout }}:30900
