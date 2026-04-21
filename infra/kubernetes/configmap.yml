@@ -1,0 +1,15 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: devtracker-config
+  namespace: devtracker
+data:
+  ENVIRONMENT: "production"
+  LOG_LEVEL: "INFO"
+  DATABASE_HOST: "postgres-service"
+  DATABASE_PORT: "5432"
+  DATABASE_NAME: "devtrackr"
+  REDIS_HOST: "redis-service"
+  REDIS_PORT: "6379"
+  API_URL: "http://devtracker-backend-service:8000"
+  FRONTEND_URL: "http://devtracker-frontend-service:80"
