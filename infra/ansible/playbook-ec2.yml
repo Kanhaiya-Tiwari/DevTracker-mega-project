@@ -336,24 +336,21 @@
           SSH access:
           ssh -i Devtracker.pem ubuntu@{{ ec2_public_ip.stdout }}
 
-          Port-forward (if needed):
-          kubectl port-forward svc/devtracker-frontend-service 8080:80 -n devtracker
-
           ArgoCD:
           kubectl port-forward svc/argocd-server -n argocd 8443:443
-          URL: https://localhost:8443
+          URL: https://localhost:8443 (from local machine)
           Get password: kubectl -n argocd get secret argocd-initial-admin-secret -o jsonpath="{.data.password}" | base64 -d
           Username: admin
 
           Prometheus:
-          kubectl port-forward svc/prometheus -n monitoring 9090:9090
-          URL: http://localhost:9090
+          URL: http://{{ ec2_public_ip.stdout }}:30900
+          Or port-forward: kubectl port-forward svc/prometheus -n monitoring 9090:9090
 
           Grafana:
-          kubectl port-forward svc/grafana -n monitoring 3000:3000
-          URL: http://localhost:3000
+          URL: http://{{ ec2_public_ip.stdout }}:30300
           Username: admin
           Password: admin123
+          Or port-forward: kubectl port-forward svc/grafana -n monitoring 3000:3000
 
           Full bootstrap log:
           sudo cat /var/log/devtracker-bootstrap.log
