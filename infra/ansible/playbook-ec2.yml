@@ -264,10 +264,11 @@
         KUBECONFIG=/etc/rancher/k3s/k3s.yaml kubectl create namespace argocd \
           --dry-run=client -o yaml | KUBECONFIG=/etc/rancher/k3s/k3s.yaml kubectl apply -f -
 
-    - name: Install ArgoCD
+    - name: Install ArgoCD (Server-side apply to avoid CRD annotation limits)
       shell: |
         KUBECONFIG=/etc/rancher/k3s/k3s.yaml kubectl apply -n argocd \
-          -f https://raw.githubusercontent.com/argoproj/argo-cd/stable/manifests/install.yaml
+          -f https://raw.githubusercontent.com/argoproj/argo-cd/stable/manifests/install.yaml \
+          --server-side --force-conflicts
 
     - name: Patch ArgoCD service to NodePort
       shell: |
@@ -301,7 +302,7 @@
         KUBECONFIG=/etc/rancher/k3s/k3s.yaml kubectl apply -f \
           /home/ubuntu/DevTracker-mega-project/infra/monitoring/prometheus/exporters.yaml
 
-    - name: Create Grafana secret
+    - name: Create Grafana secret (BEFORE deployment)
       shell: |
         KUBECONFIG=/etc/rancher/k3s/k3s.yaml kubectl create secret generic grafana-secret \
           -n monitoring --from-literal=admin-password=admin123 --dry-run=client -o yaml | \
