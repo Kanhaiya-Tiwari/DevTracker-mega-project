@@ -1,5 +1,10 @@
-export function skillProgress(skill, logs = []) {
-  const completed = logs.reduce((sum, item) => sum + Number(item.hours || 0), 0);
+export function skillProgress(skill, logs = [], logProofs = {}) {
+  // Only count hours from sessions that have proof of work
+  const completed = logs.reduce((sum, item) => {
+    const proofs = logProofs[item.id] || [];
+    const hasProof = proofs.length > 0;
+    return hasProof ? sum + Number(item.hours || 0) : sum;
+  }, 0);
   const target = Number(skill?.totalHours || 0);
   const remaining = Math.max(0, target - completed);
   const pct = target > 0 ? Math.min(100, Math.round((completed / target) * 100)) : 0;

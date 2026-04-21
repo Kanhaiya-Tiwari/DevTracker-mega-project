@@ -1,43 +1,82 @@
 @import "tailwindcss";
 
-:root { color-scheme: dark; }
-* { box-sizing: border-box; }
-html { scroll-behavior: smooth; }
+:root {
+  color-scheme: light;
+  --bg-page: #ffffff;
+  --bg-surface: #f8fafc;
+  --bg-surface-strong: #e2e8f0;
+  --text-primary: #0f172a;
+  --text-muted: #334155;
+  --border-color: rgba(15, 23, 42, 0.08);
+  --card-bg: rgba(255, 255, 255, 0.92);
+  --field-bg: rgba(255, 255, 255, 0.94);
+  --field-border: rgba(148, 163, 184, 0.25);
+  --chat-ai-bg: rgba(15, 23, 42, 0.06);
+  --shadow-color: rgba(15, 23, 42, 0.08);
+}
 
+html.theme-dark {
+  color-scheme: dark;
+  --bg-page: #030712;
+  --bg-surface: rgba(5, 10, 28, 0.88);
+  --bg-surface-strong: rgba(15, 23, 42, 0.78);
+  --text-primary: #e2e8f0;
+  --text-muted: #94a3b8;
+  --border-color: rgba(255, 255, 255, 0.12);
+  --card-bg: rgba(5, 10, 28, 0.88);
+  --field-bg: rgba(2, 6, 23, 0.9);
+  --field-border: rgba(255, 255, 255, 0.08);
+  --chat-ai-bg: rgba(255, 255, 255, 0.06);
+  --shadow-color: rgba(0, 0, 0, 0.35);
+}
+
+.bg-surface { background: var(--bg-surface) !important; }
+.bg-surface-strong { background: var(--bg-surface-strong) !important; }
+
+* { box-sizing: border-box; }
+html { 
+  scroll-behavior: smooth;
+  overflow-x: hidden;
+}
 body {
   margin: 0;
   min-height: 100vh;
-  background: #030712;
-  background-image:
-    radial-gradient(ellipse at 10% 0%, rgba(16,185,129,0.12) 0%, transparent 50%),
-    radial-gradient(ellipse at 90% 0%, rgba(168,85,247,0.10) 0%, transparent 45%),
-    radial-gradient(ellipse at 50% 100%, rgba(236,72,153,0.06) 0%, transparent 50%);
-  color: #e2e8f0;
+  background: var(--bg-page);
+  color: var(--text-primary);
   font-family: Inter, ui-sans-serif, system-ui, -apple-system, sans-serif;
+  overflow-x: hidden;
+  -webkit-overflow-scrolling: touch;
 }
-#root { min-height: 100vh; }
+#root { 
+  min-height: 100vh;
+  overflow-x: hidden;
+}
+
+.bg-page { background: var(--bg-page) !important; }
+.text-primary { color: var(--text-primary) !important; }
 
 .field {
   width: 100%;
   border-radius: 0.75rem;
-  border: 1px solid rgba(255,255,255,0.08);
-  background: rgba(2,6,23,0.9);
+  border: 1px solid var(--field-border);
+  background: var(--field-bg);
   padding: 0.85rem 1rem;
-  color: white;
+  color: var(--text-primary);
   outline: none;
-  transition: border-color 0.2s, box-shadow 0.2s;
+  transition: border-color 0.2s, box-shadow 0.2s, background 0.2s;
 }
 .field:focus {
   border-color: rgba(168,85,247,0.8);
   box-shadow: 0 0 0 3px rgba(168,85,247,0.15);
 }
-.field::placeholder { color: #475569; }
+.field::placeholder { color: var(--text-muted); }
 
 .glass-card {
-  background: rgba(5,10,28,0.88);
-  border: 1px solid rgba(255,255,255,0.07);
+  background: var(--card-bg);
+  border: 1px solid var(--border-color);
   backdrop-filter: blur(24px);
   -webkit-backdrop-filter: blur(24px);
+  box-shadow: 0 30px 50px var(--shadow-color);
 }
 
 .glow-emerald { box-shadow: 0 0 40px rgba(16,185,129,0.18), 0 0 80px rgba(16,185,129,0.06); }
@@ -151,6 +190,41 @@ body {
 ::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 4px; }
 ::-webkit-scrollbar-thumb:hover { background: rgba(168,85,247,0.4); }
 
+/* Additional scrolling fixes */
+* {
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+html, body {
+  height: 100%;
+  scroll-padding-top: 0;
+}
+
+body {
+  position: relative;
+  overflow-y: auto;
+  overflow-x: hidden;
+}
+
+/* Fix for modal scroll lock */
+.modal-open {
+  overflow: hidden;
+}
+
+/* Fix for scroll containers */
+.scroll-container {
+  overflow-y: auto;
+  overflow-x: hidden;
+  -webkit-overflow-scrolling: touch;
+}
+
+/* Fix for sticky elements */
+.sticky {
+  position: -webkit-sticky;
+  position: sticky;
+}
+
 .rank-gold   { background: linear-gradient(135deg, #fbbf24, #f59e0b); color: #1c0a00; }
 .rank-silver { background: linear-gradient(135deg, #94a3b8, #cbd5e1); color: #1e293b; }
 .rank-bronze { background: linear-gradient(135deg, #fb923c, #ea580c); color: white; }
@@ -160,8 +234,8 @@ body {
   border-radius: 18px 18px 4px 18px;
 }
 .chat-bubble-ai {
-  background: rgba(255,255,255,0.06);
-  border: 1px solid rgba(255,255,255,0.1);
+  background: var(--chat-ai-bg);
+  border: 1px solid rgba(148, 163, 184, 0.2);
   border-radius: 18px 18px 18px 4px;
 }
 

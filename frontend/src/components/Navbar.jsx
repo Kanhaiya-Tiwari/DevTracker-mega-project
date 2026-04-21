@@ -1,6 +1,6 @@
 import NotificationCenter from "./NotificationCenter";
 
-export default function Navbar({ user, view, setView, onLogout }) {
+export default function Navbar({ user, view, setView, onLogout, theme, onToggleTheme }) {
   const tabs = [
     { id: "dashboard",   label: "Dashboard",   emoji: "🏠" },
     { id: "skill",       label: "Skills",       emoji: "🎯" },
@@ -12,7 +12,7 @@ export default function Navbar({ user, view, setView, onLogout }) {
     { id: "settings",    label: "Settings",     emoji: "⚙️" },
   ];
   return (
-    <header className="sticky top-0 z-40 border-b border-white/6 bg-black/85 backdrop-blur-xl">
+    <header className="sticky top-0 z-40 border-b border-slate-200/20 bg-surface backdrop-blur-xl">
       <div className="mx-auto flex max-w-7xl items-center gap-3 px-4 py-3">
         <div className="flex items-center gap-2.5 mr-3 shrink-0">
           <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-sky-500 to-blue-700 flex items-center justify-center text-sm font-black text-white shadow-lg shadow-sky-900/40">D</div>
@@ -29,6 +29,9 @@ export default function Navbar({ user, view, setView, onLogout }) {
           ))}
         </nav>
         <div className="ml-2 flex items-center gap-2 shrink-0">
+          <button onClick={onToggleTheme} className="rounded-lg border border-slate-300/20 bg-white/10 px-3 py-1.5 text-xs text-slate-900 hover:bg-white/20 transition duration-200 font-medium">
+            {theme === "dark" ? "☀️ Light" : "🌙 Dark"}
+          </button>
           {user && (
             <>
               <NotificationCenter />

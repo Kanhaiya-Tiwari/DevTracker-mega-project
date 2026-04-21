@@ -115,6 +115,16 @@ export default function DashboardPage({ skills, logsBySkill, selectedSkillId, se
   const [dailyTip, setDailyTip] = useState(null);
   const [logProofs, setLogProofs] = useState({});
   const [loadingProof, setLoadingProof] = useState({});
+  const [selectedSession, setSelectedSession] = useState(null);
+  const [showAllHistory, setShowAllHistory] = useState(false);
+
+  const showSessionDetails = (log) => {
+    setSelectedSession(log);
+  };
+
+  const closeSessionDetails = () => {
+    setSelectedSession(null);
+  };
 
   useEffect(() => {
     const t = setInterval(() => setTipIdx((i) => (i + 1) % TIPS.length), 8000);
@@ -155,11 +165,16 @@ export default function DashboardPage({ skills, logsBySkill, selectedSkillId, se
     Object.entries(logsBySkill || {}).forEach(([skillId, skillLogs]) => {
       const skill = skills.find(s => s.id === skillId);
       skillLogs.forEach(log => {
-        logs.push({ ...log, skillName: skill?.name || "Unknown", skillIcon: skill?.icon || "⚡" });
+        logs.push({ ...log, skillName: skill?.name || "Unknown", skillIcon: skill?.icon || "???" });
       });
     });
     return logs.sort((a, b) => new Date(b.log_date || b.date) - new Date(a.log_date || a.date));
   }, [logsBySkill, skills]);
+
+  // Display logs based on showAllHistory state
+  const displayLogs = useMemo(() => {
+    return showAllHistory ? allLogs : allLogs.slice(0, 10);
+  }, [allLogs, showAllHistory]);
 
   const selected = skills.find((s) => s.id === selectedSkillId) || skills[0] || null;
   const selectedProgress = useMemo(() => skillProgress(selected, selected ? logsBySkill[selected.id] || [] : []), [selected, logsBySkill]);
@@ -230,13 +245,26 @@ export default function DashboardPage({ skills, logsBySkill, selectedSkillId, se
 
         {allLogs.length === 0 ? (
           <div className="rounded-2xl border border-dashed border-white/15 bg-white/2 p-10 text-center">
-            <p className="text-4xl mb-3">�</p>
+            <p className="text-4xl mb-3">?</p>
             <p className="text-white font-semibold text-lg">No sessions logged yet</p>
             <p className="text-slate-400 text-sm mt-1">Go to a skill page to log your first session</p>
           </div>
         ) : (
           <div className="space-y-3">
-            {allLogs.map((log) => {
+            <div className="flex items-center justify-between">
+              <h3 className="text-sm font-bold text-white">Session History</h3>
+              {allLogs.length > 10 && (
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  onClick={() => setShowAllHistory(!showAllHistory)}
+                  className="text-xs px-3 py-1"
+                >
+                  {showAllHistory ? "Show Less" : "Show History All"}
+                </Button>
+              )}
+            </div>
+            {displayLogs.map((log) => {
               const proofs = logProofs[log.id] || [];
               const hasProof = proofs.length > 0;
               return (
@@ -263,38 +291,50 @@ export default function DashboardPage({ skills, logsBySkill, selectedSkillId, se
 
                   {/* Proof of Work Status */}
                   <div className="mt-3 pt-3 border-t border-white/10">
-                    <div className="flex items-center gap-2">
-                      <p className="text-xs font-semibold text-purple-300">📸 Proof of Work</p>
-                      {hasProof ? (
-                        <span className="text-xs px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300">
-                          ✓ {proofs.length} uploaded
-                        </span>
-                      ) : (
-                        <span className="text-xs px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-300">
-                          ⚠️ No proof uploaded
-                        </span>
-                      )}
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <p className="text-xs font-semibold text-purple-300">Proof of Work</p>
+                        {hasProof ? (
+                          <span className="text-xs px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300">
+                            {proofs.length} uploaded
+                          </span>
+                        ) : (
+                          <span className="text-xs px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-300">
+                            No proof
+                          </span>
+                        )}
+                      </div>
+                      <button
+                        onClick={() => showSessionDetails(log)}
+                        className="text-xs px-2 py-1 rounded-lg bg-purple-500/20 text-purple-300 hover:bg-purple-500/30 transition-colors"
+                      >
+                        See Details
+                      </button>
                     </div>
                     {hasProof && (
-                      <div className="mt-2 flex gap-2">
-                        {proofs.slice(0, 3).map((proof) => (
+                      <div className="mt-2 flex gap-2 flex-wrap">
+                        {proofs.map((proof) => (
                           <div key={proof.id} className="relative group">
                             {proof.file_type?.startsWith("image/") ? (
                               <img
-                                src={`${API_BASE.replace("/api/v1", "")}/uploads/${proof.file_url.split("/").pop()}`}
+                                src={`http://localhost:8000/uploads/${proof.file_url}`}
                                 alt={proof.file_name}
-                                className="w-12 h-12 object-cover rounded-lg border border-purple-500/30"
+                                className="w-16 h-16 object-cover rounded-lg border border-purple-500/30 cursor-pointer hover:border-purple-400/50 transition-colors"
+                                onClick={() => window.open(`http://localhost:8000/uploads/${proof.file_url}`, '_blank')}
                               />
                             ) : (
-                              <div className="w-12 h-12 rounded-lg border border-purple-500/30 bg-purple-900/20 flex items-center justify-center">
-                                <span className="text-purple-400 text-xs">📄</span>
+                              <div className="w-16 h-16 rounded-lg border border-purple-500/30 bg-purple-900/20 flex items-center justify-center cursor-pointer hover:bg-purple-800/30 transition-colors"
+                                onClick={() => window.open(`http://localhost:8000/uploads/${proof.file_url}`, '_blank')}>
+                                <span className="text-purple-400 text-xs">PDF</span>
+                              </div>
+                            )}
+                            {proof.notes && (
+                              <div className="absolute bottom-0 left-0 right-0 bg-black/75 text-xs text-white p-1 rounded-b-lg opacity-0 group-hover:opacity-100 transition-opacity">
+                                {proof.notes.slice(0, 20)}...
                               </div>
                             )}
                           </div>
                         ))}
-                        {proofs.length > 3 && (
-                          <span className="text-xs text-slate-400 self-center">+{proofs.length - 3} more</span>
-                        )}
                       </div>
                     )}
                   </div>
@@ -334,6 +374,106 @@ export default function DashboardPage({ skills, logsBySkill, selectedSkillId, se
       </section>
 
       <AddSkillModal open={showModal} onClose={() => setShowModal(false)} onCreate={onAddSkill} loading={addSkillLoading} token={token} />
+
+      {/* Session Details Modal */}
+      {selectedSession && (
+        <div className="fixed inset-0 z-50 grid place-items-center bg-black/80 backdrop-blur-md px-4">
+          <div className="w-full max-w-2xl rounded-2xl bg-gradient-to-br from-slate-900 to-slate-800 border border-purple-500/30 p-6 shadow-2xl max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between mb-6">
+              <h3 className="text-xl font-bold text-white flex items-center gap-3">
+                <span className="text-2xl">{selectedSession.skillIcon}</span>
+                Session Details
+              </h3>
+              <button
+                onClick={closeSessionDetails}
+                className="p-2 hover:bg-white/10 rounded-xl transition-all duration-200"
+              >
+                <svg className="w-5 h-5 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+
+            <div className="space-y-4">
+              {/* Session Info */}
+              <div className="rounded-xl border border-white/10 bg-white/5 p-4">
+                <h4 className="text-sm font-semibold text-purple-300 mb-3">Session Information</h4>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <p className="text-xs text-slate-400">Skill</p>
+                    <p className="text-sm font-medium text-white">{selectedSession.skillName}</p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-slate-400">Date</p>
+                    <p className="text-sm font-medium text-white">{formatDate(selectedSession.log_date || selectedSession.date)}</p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-slate-400">Hours</p>
+                    <p className="text-sm font-medium text-white">{hours(selectedSession.hours)}</p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-slate-400">Quality</p>
+                    <p className="text-sm font-medium text-white capitalize">{selectedSession.quality}</p>
+                  </div>
+                </div>
+                {selectedSession.notes && (
+                  <div className="mt-3">
+                    <p className="text-xs text-slate-400">Notes</p>
+                    <p className="text-sm text-white mt-1">{selectedSession.notes}</p>
+                  </div>
+                )}
+              </div>
+
+              {/* Proof of Work */}
+              <div className="rounded-xl border border-white/10 bg-white/5 p-4">
+                <h4 className="text-sm font-semibold text-purple-300 mb-3">Proof of Work</h4>
+                {(() => {
+                  const proofs = logProofs[selectedSession.id] || [];
+                  const hasProof = proofs.length > 0;
+                  return hasProof ? (
+                    <div className="space-y-3">
+                      {proofs.map((proof) => (
+                        <div key={proof.id} className="flex items-center gap-3 p-3 rounded-lg bg-purple-900/20 border border-purple-500/30">
+                          {proof.file_type?.startsWith("image/") ? (
+                            <img
+                              src={`http://localhost:8000/uploads/${proof.file_url}`}
+                              alt={proof.file_name}
+                              className="w-20 h-20 object-cover rounded-lg border border-purple-500/50 cursor-pointer hover:border-purple-400/70 transition-colors"
+                              onClick={() => window.open(`http://localhost:8000/uploads/${proof.file_url}`, '_blank')}
+                            />
+                          ) : (
+                            <div className="w-20 h-20 rounded-lg border border-purple-500/30 bg-purple-900/40 flex items-center justify-center cursor-pointer hover:bg-purple-800/50 transition-colors"
+                              onClick={() => window.open(`http://localhost:8000/uploads/${proof.file_url}`, '_blank')}>
+                              <span className="text-purple-300 text-sm">PDF</span>
+                            </div>
+                          )}
+                          <div className="flex-1">
+                            <p className="text-sm font-medium text-white">{proof.file_name}</p>
+                            <p className="text-xs text-slate-400">{new Date(proof.created_at).toLocaleDateString()}</p>
+                            {proof.notes && (
+                              <p className="text-xs text-slate-300 mt-1">{proof.notes}</p>
+                            )}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="text-center py-6">
+                      <div className="w-16 h-16 rounded-full bg-amber-500/20 flex items-center justify-center mx-auto mb-3">
+                        <svg className="w-8 h-8 text-amber-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 16.5c-.77.833.192 2.5 1.732 2.5z" />
+                        </svg>
+                      </div>
+                      <p className="text-amber-300 font-medium">No proof uploaded</p>
+                      <p className="text-slate-400 text-sm mt-1">This session doesn't have any proof of work</p>
+                    </div>
+                  );
+                })()}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

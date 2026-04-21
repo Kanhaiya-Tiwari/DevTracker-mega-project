@@ -11,7 +11,7 @@ export default function Sidebar({ view, setView, user }) {
     {
       label: "AI & Community",
       items: [
-        { id: "chat", label: "AI Coach", icon: "🤖", desc: "Gemini-powered" },
+        { id: "chat", label: "AI Coach", icon: "🤖", desc: "Lovable AI" },
         { id: "blog", label: "Community", icon: "📝", desc: "Share insights" },
         { id: "leaderboard", label: "Leaderboard", icon: "🏆", desc: "Top performers" },
       ],

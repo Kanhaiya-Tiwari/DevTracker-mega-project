@@ -1,23 +1,29 @@
 import { useState, useRef, useEffect } from "react";
 import Button from "../components/Button";
 import Input from "../components/Input";
+import { api } from "../services/api";
 
 const QUICK_PROMPTS = [
   "What should I focus on today?",
   "How do I stay consistent?",
+  "Give me a study schedule",
   "I'm feeling stuck and unmotivated",
+  "How do I measure my progress?",
+  "Best resources for this skill?",
 ];
 
+const INITIAL_MSG = {
+  role: "assistant",
+  text: "Hey! I'm your DevTrackr AI Coach. I analyse your learning data and give real, actionable advice.\n\nWhat's blocking your progress today?",
+  time: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+};
+
 export default function AIChatPage({ skill, insight, token }) {
-  const [messages, setMessages] = useState([
-    {
-      role: "assistant",
-      text: "Hey! I'm your DevTrackr AI Coach. I'm here to help you stay motivated and on track.\n\nWhat's on your mind today?",
-      time: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
-    }
-  ]);
+  const [messages, setMessages] = useState([INITIAL_MSG]);
   const [text, setText] = useState("");
   const [thinking, setThinking] = useState(false);
+  const [model, setModel] = useState("...");
+  const [provider, setProvider] = useState("OpenRouter");
   const bottomRef = useRef(null);
 
   useEffect(() => {
@@ -29,6 +35,7 @@ export default function AIChatPage({ skill, insight, token }) {
     if (!msg || thinking) return;
     setText("");
 
+    // Check if token is available
     if (!token) {
       setMessages((prev) => [...prev, {
         role: "assistant",
@@ -43,35 +50,52 @@ export default function AIChatPage({ skill, insight, token }) {
     setThinking(true);
 
     try {
-      // Fallback responses since API might have issues
-      const fallbackResponses = [
-        "The key to progress is consistency. Even 15 minutes daily beats 3 hours once a week. You've got this!",
-        "Every expert was once a beginner. Your current struggle is proof that you're growing. Keep pushing forward!",
-        "Break down big goals into tiny steps. What's one small thing you can do right now to move forward?",
-        "Motivation comes from action, not the other way around. Start with 5 minutes - that's all it takes.",
-        "Your future self will thank you for the work you put in today. Stay consistent and trust the process!"
-      ];
+      console.log("Sending AI chat request...");
+      const response = await fetch("http://localhost:8000/api/v1/chat/", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          message: msg,
+          skill_name: skill?.name,
+          context: insight?.coach_message
+        })
+      });
+
+      console.log("AI chat response status:", response.status);
       
-      const randomResponse = fallbackResponses[Math.floor(Math.random() * fallbackResponses.length)];
-      
-      // Simulate thinking time
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      
-      setMessages((prev) => [...prev, {
-        role: "assistant",
-        text: randomResponse,
-        time: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
-        model: "fallback"
-      }]);
-      
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      const data = await response.json();
+      console.log("AI chat response data:", data);
+
+      if (data && data.reply) {
+        setMessages((prev) => [...prev, {
+          role: "assistant",
+          text: data.reply,
+          model: data.model || "fallback",
+          time: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })
+        }]);
+        
+        setModel(data.model || "fallback");
+        setProvider(data.powered_by || "DevTrackr");
+      } else {
+        throw new Error("No response from AI");
+      }
     } catch (error) {
       console.error("AI Chat Error:", error);
       setMessages((prev) => [...prev, {
         role: "assistant",
-        text: "I'm here to help! Remember: consistency beats intensity. Small daily steps lead to big results.",
+        text: "Sorry, I'm having trouble connecting right now. Try again in a moment!",
         time: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
         error: true
       }]);
+      setModel("error");
+      setProvider("offline");
     } finally {
       setThinking(false);
     }
@@ -136,14 +160,14 @@ export default function AIChatPage({ skill, insight, token }) {
         </div>
 
         <div className="space-y-3">
-          <div className="flex gap-2 flex-wrap">
-            {QUICK_PROMPTS.map((prompt) => (
+          <div className="flex gap-2">
+            {QUICK_PROMPTS.slice(0, 3).map((prompt) => (
               <Button
                 key={prompt}
                 variant="secondary"
                 size="sm"
                 onClick={() => handleQuickPrompt(prompt)}
-                className="text-xs px-2 py-1"
+                className="text-xs px-2 py-1 whitespace-nowrap"
               >
                 {prompt}
               </Button>
@@ -169,9 +193,11 @@ export default function AIChatPage({ skill, insight, token }) {
           </div>
         </div>
 
-        <div className="mt-4 text-xs text-slate-400 text-center">
-          AI Coach - Always here to motivate you! ??
-        </div>
+        {model !== "..." && (
+          <div className="mt-4 text-xs text-slate-400 text-center">
+            Powered by {provider} · {model}
+          </div>
+        )}
       </div>
     </div>
   );

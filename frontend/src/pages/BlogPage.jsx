@@ -73,6 +73,54 @@ export default function BlogPage({ token, user }) {
     }
   };
 
+  const handleLike = async (blogId) => {
+    if (!token) {
+      alert("Please log in to like blogs");
+      return;
+    }
+    try {
+      // Toggle like functionality
+      setBlogs(prev => prev.map(blog => 
+        blog.id === blogId 
+          ? { ...blog, likes: (blog.likes || 0) + 1, userLiked: true }
+          : blog
+      ));
+      // You can add API call here if backend supports it
+      // await api.likeBlog(token, blogId);
+    } catch (error) {
+      console.error("Failed to like blog:", error);
+    }
+  };
+
+  const handleComment = (blogId) => {
+    const comment = prompt("Share your thoughts on this blog:");
+    if (comment && token) {
+      // Add comment functionality
+      setBlogs(prev => prev.map(blog => 
+        blog.id === blogId 
+          ? { ...blog, comments: (blog.comments || 0) + 1 }
+          : blog
+      ));
+      // You can add API call here if backend supports it
+      // await api.addComment(token, blogId, comment);
+    }
+  };
+
+  const handleShare = (blog) => {
+    if (navigator.share) {
+      navigator.share({
+        title: blog.title,
+        text: blog.content.slice(0, 200) + "...",
+        url: window.location.href
+      });
+    } else {
+      // Fallback for browsers that don't support Web Share API
+      const text = `${blog.title}\n\n${blog.content.slice(0, 200)}...\n\n${window.location.href}`;
+      navigator.clipboard.writeText(text);
+      alert("Blog link copied to clipboard!");
+    }
+  };
+
   const formatDate = (dateString) => {
     const date = new Date(dateString);
     return date.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
@@ -207,15 +255,32 @@ export default function BlogPage({ token, user }) {
                   <p className="text-slate-300 leading-relaxed whitespace-pre-wrap mb-6 line-clamp-4">{blog.content}</p>
 
                   <div className="flex items-center gap-6 pt-4 border-t border-slate-700/50">
-                    <button className="flex items-center gap-2 text-slate-400 hover:text-rose-400 transition-all duration-200 hover:scale-105">
-                      <Heart className="w-5 h-5" />
-                      <span className="text-sm font-medium">Like</span>
+                    <button 
+                      onClick={() => handleLike(blog.id)}
+                      className={`flex items-center gap-2 transition-all duration-200 hover:scale-105 ${
+                        blog.userLiked 
+                          ? "text-rose-400" 
+                          : "text-slate-400 hover:text-rose-400"
+                      }`}
+                    >
+                      <Heart className={`w-5 h-5 ${blog.userLiked ? "fill-current" : ""}`} />
+                      <span className="text-sm font-medium">
+                        {blog.likes || 0} {blog.likes === 1 ? "Like" : "Likes"}
+                      </span>
                     </button>
-                    <button className="flex items-center gap-2 text-slate-400 hover:text-sky-400 transition-all duration-200 hover:scale-105">
+                    <button 
+                      onClick={() => handleComment(blog.id)}
+                      className="flex items-center gap-2 text-slate-400 hover:text-sky-400 transition-all duration-200 hover:scale-105"
+                    >
                       <MessageCircle className="w-5 h-5" />
-                      <span className="text-sm font-medium">Comment</span>
+                      <span className="text-sm font-medium">
+                        {blog.comments || 0} {blog.comments === 1 ? "Comment" : "Comments"}
+                      </span>
                     </button>
-                    <button className="flex items-center gap-2 text-slate-400 hover:text-emerald-400 transition-all duration-200 hover:scale-105">
+                    <button 
+                      onClick={() => handleShare(blog)}
+                      className="flex items-center gap-2 text-slate-400 hover:text-emerald-400 transition-all duration-200 hover:scale-105"
+                    >
                       <Share2 className="w-5 h-5" />
                       <span className="text-sm font-medium">Share</span>
                     </button>

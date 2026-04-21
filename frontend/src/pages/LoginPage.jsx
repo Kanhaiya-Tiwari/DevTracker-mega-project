@@ -7,7 +7,7 @@ export default function LoginPage({ onSubmit, onSwitch, loading, error }) {
   const [password, setPassword] = useState("");
 
   return (
-    <div className="relative min-h-screen grid place-items-center px-4 bg-slate-950 overflow-hidden">
+    <div className="relative min-h-screen grid place-items-center px-4 bg-page text-primary overflow-hidden">
       <div className="float-soft absolute -top-10 -left-8 h-48 w-48 rounded-full bg-violet-500/20 blur-3xl" />
       <div className="float-soft absolute -bottom-16 right-0 h-56 w-56 rounded-full bg-cyan-400/15 blur-3xl" />
       <div className="glass-card relative w-full max-w-md rounded-2xl p-6 shadow-2xl">

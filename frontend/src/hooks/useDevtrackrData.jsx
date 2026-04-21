@@ -111,6 +111,7 @@ export function useDevtrackrData(token) {
       ...prev,
       [normalized.skillId]: [...(prev[normalized.skillId] || []), normalized],
     }));
+    return created; // Return the original response with the ID
   }
 
   async function refreshInsight() {

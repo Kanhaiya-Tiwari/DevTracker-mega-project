@@ -1,4 +1,4 @@
-const API_BASE = (import.meta.env.VITE_API_BASE_URL || "/api/v1").replace(/\/$/, "");
+const API_BASE = "http://localhost:8001/api/v1";
 
 async function request(path, options = {}) {
   const headers = { ...(options.headers || {}) };

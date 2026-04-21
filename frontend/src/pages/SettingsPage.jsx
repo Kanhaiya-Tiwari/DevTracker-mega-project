@@ -166,7 +166,7 @@ export default function SettingsPage({ token, user, onUserUpdate }) {
       <div className="rounded-2xl border border-sky-500/20 bg-gradient-to-br from-sky-500/8 to-blue-600/5 p-6">
         <h3 className="text-base font-bold text-white mb-3">🤖 About DevTrackr AI</h3>
         <p className="text-sm text-slate-300 leading-relaxed mb-3">
-          DevTrackr uses <strong className="text-sky-300">OpenRouter AI</strong> for intelligent coaching. Fast, reliable, and powered by top LLMs.
+          DevTrackr uses <strong className="text-sky-300">Lovable AI Gateway</strong> for intelligent coaching. Fast, streaming responses powered by Gemini 3 and GPT-5 models.
         </p>
         <div className="grid sm:grid-cols-2 gap-2">
           {[

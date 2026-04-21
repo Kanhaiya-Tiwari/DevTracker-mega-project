@@ -33,8 +33,11 @@ export default function SkillDetailPage({ skill, logs, insight, onLog, onRefresh
   const [uploading, setUploading] = useState(false);
   const [submittingSession, setSubmittingSession] = useState(false);
   const [lastSubmittedLogId, setLastSubmittedLogId] = useState(null);
+  const [sessionSubmitted, setSessionSubmitted] = useState(false);
+  const [currentSessionLogId, setCurrentSessionLogId] = useState(null);
+  const [proofUploaded, setProofUploaded] = useState(false);
 
-  const progress = useMemo(() => skillProgress(skill, logs), [skill, logs]);
+  const progress = useMemo(() => skillProgress(skill, logs, logProofs), [skill, logs, logProofs]);
   const chart = useMemo(() => weekSeries(logs), [logs]);
   const daysLeft = skill?.deadline ? Math.max(0, Math.ceil((new Date(skill.deadline) - Date.now()) / 86400000)) : null;
   const recentLogs = useMemo(() => [...(logs || [])].reverse().slice(0, 10), [logs]);
@@ -82,7 +85,16 @@ export default function SkillDetailPage({ skill, logs, insight, onLog, onRefresh
     setUploading(true);
     try {
       await api.uploadProofOfWork(token, selectedLogForProof, uploadFile, uploadNotes);
-      alert("Proof of work uploaded successfully!");
+      
+      // If this was the current session, mark it as complete
+      if (selectedLogForProof === currentSessionLogId) {
+        setSessionSubmitted(false);
+        setCurrentSessionLogId(null);
+        alert("Session completed! Proof of work uploaded successfully.");
+      } else {
+        alert("Proof of work uploaded successfully!");
+      }
+      
       setShowProofModal(false);
       setUploadFile(null);
       setUploadPreview(null);
@@ -110,14 +122,50 @@ export default function SkillDetailPage({ skill, logs, insight, onLog, onRefresh
     e.preventDefault();
     setSubmittingSession(true);
     try {
+      console.log("Submitting session with proof...");
+      
+      // First upload proof of work
+      if (!uploadFile) {
+        alert("Please upload proof of work before submitting your session.");
+        setSubmittingSession(false);
+        return;
+      }
+      
       // Submit the session first
-      await onLog(skill.id, Number(hoursInput), quality, notes);
+      const result = await onLog(skill.id, Number(hoursInput), quality, notes);
+      console.log("Session submitted result:", result);
+      
       setHoursInput("1");
       setNotes("");
-      // The onLog should trigger a refresh, and we'll get the new log
-      alert("Session submitted! Please upload proof of work for this session.");
+      
+      // Extract log ID from different possible response formats
+      let logId;
+      if (typeof result === 'string') {
+        logId = result;
+      } else if (result && typeof result === 'object') {
+        logId = result.id || result.skillId || result.logId;
+      }
+      
+      console.log("Extracted log ID:", logId);
+      
+      if (!logId) {
+        console.error("No session ID found in response:", result);
+        throw new Error("Failed to get session ID from response");
+      }
+      
+      // Upload proof of work for the new session
+      await api.uploadProofOfWork(token, logId, uploadFile, uploadNotes);
+      
+      // Reset form
+      setUploadFile(null);
+      setUploadPreview(null);
+      setUploadNotes("");
+      setProofUploaded(false);
+      
+      alert("Session submitted successfully with proof of work!");
     } catch (error) {
-      alert(error?.message || "Failed to submit session");
+      console.error("Session submission error:", error);
+      alert(error?.message || "Failed to submit session. Please try again.");
     } finally {
       setSubmittingSession(false);
     }
@@ -190,32 +238,107 @@ export default function SkillDetailPage({ skill, logs, insight, onLog, onRefresh
 
       {/* Log Session */}
       <section className="glass-card rounded-2xl p-5">
-        <h3 className="text-sm font-bold text-white mb-3">⏱️ Log a Session</h3>
-        <form className="flex flex-col gap-3"
-          onSubmit={handleSessionSubmit}
-        >
-          <div className="flex gap-3 flex-wrap">
-            <Input label="Hours" type="number" step="0.25" min="0.25" max="12" value={hoursInput} onChange={(e) => setHoursInput(e.target.value)} className="w-28" />
-            <div className="flex-1">
-              <label className="block">
-                <span className="mb-1.5 block text-xs font-semibold uppercase tracking-wider text-slate-400">Session Quality</span>
-                <div className="flex gap-2">
-                  {QUALITY_OPTS.map((q) => (
-                    <button key={q.value} type="button" onClick={() => setQuality(q.value)}
-                      className={`flex-1 rounded-xl border py-2 text-xs font-semibold transition ${quality === q.value ? "border-emerald-500/50 bg-emerald-500/15 text-emerald-300" : "border-white/8 bg-white/4 text-slate-400 hover:bg-white/8"}`}>
-                      {q.emoji} {q.label}
-                    </button>
-                  ))}
-                </div>
-              </label>
-            </div>
+        <h3 className="text-sm font-bold text-white mb-3">Log a Session</h3>
+        
+        {/* Proof of Work Upload Section */}
+        <div className="mb-6">
+          <h4 className="text-xs font-semibold text-purple-300 mb-3">Step 1: Upload Proof of Work (Required)</h4>
+          <div className="border-2 border-dashed border-purple-500/30 rounded-xl p-6 text-center hover:border-purple-500/50 hover:bg-purple-500/5 transition-all duration-300">
+            <input
+              type="file"
+              onChange={handleFileChange}
+              accept="image/*,.pdf,.doc,.docx"
+              className="hidden"
+              id="session-proof-upload"
+            />
+            <label htmlFor="session-proof-upload" className="cursor-pointer block">
+              <div className="w-12 h-12 rounded-full bg-gradient-to-br from-purple-500/20 to-violet-500/20 flex items-center justify-center mx-auto mb-3 hover:scale-110 transition-transform duration-300">
+                <Upload className="w-6 h-6 text-purple-400" />
+              </div>
+              <p className="text-white font-semibold text-sm mb-1">Click to upload proof</p>
+              <p className="text-slate-400 text-xs">Screenshot of your work</p>
+              <p className="text-slate-500 text-xs mt-1">PNG, JPG, PDF up to 10MB</p>
+            </label>
           </div>
-          <Input label="Notes (optional)" value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="What did you work on?" />
-          <Button variant="success" type="submit" disabled={submittingSession}>
-            {submittingSession ? "Submitting..." : "📝 Submit Session"}
-          </Button>
-        </form>
-        <p className="text-xs text-slate-500 mt-2">⚠️ After submitting, you must upload proof of work for this session</p>
+          
+          {uploadFile && (
+            <div className="mt-3 bg-gradient-to-r from-purple-900/30 to-violet-900/30 rounded-lg p-3 flex items-center gap-3">
+              {uploadPreview ? (
+                <div className="w-12 h-12 rounded-lg overflow-hidden ring-2 ring-purple-500/30">
+                  <img src={uploadPreview} alt="Preview" className="w-full h-full object-cover" />
+                </div>
+              ) : (
+                <div className="w-12 h-12 rounded-lg bg-gradient-to-br from-purple-700 to-violet-600 flex items-center justify-center">
+                  {uploadFile.type.startsWith("image/") ? (
+                    <FileImage className="w-6 h-6 text-white" />
+                  ) : (
+                    <FileText className="w-6 h-6 text-white" />
+                  )}
+                </div>
+              )}
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-semibold text-white truncate">{uploadFile.name}</p>
+                <p className="text-xs text-slate-400">{(uploadFile.size / 1024).toFixed(1)} KB</p>
+              </div>
+              <button
+                onClick={() => { setUploadFile(null); setUploadPreview(null); }}
+                className="p-2 hover:bg-rose-500/10 rounded-lg transition-colors"
+              >
+                <X className="w-4 h-4 text-slate-400 hover:text-rose-400" />
+              </button>
+            </div>
+          )}
+          
+          <Input
+            label="Proof Notes (optional)"
+            value={uploadNotes}
+            onChange={(e) => setUploadNotes(e.target.value)}
+            placeholder="Add a note about this proof..."
+            className="mt-3"
+          />
+        </div>
+
+        {/* Session Details Section */}
+        <div className="border-t border-white/10 pt-4">
+          <h4 className="text-xs font-semibold text-purple-300 mb-3">Step 2: Session Details</h4>
+          <form className="flex flex-col gap-3"
+            onSubmit={handleSessionSubmit}
+          >
+            <div className="flex gap-3 flex-wrap">
+              <Input label="Hours" type="number" step="0.25" min="0.25" max="12" value={hoursInput} onChange={(e) => setHoursInput(e.target.value)} className="w-28" />
+              <div className="flex-1">
+                <label className="block">
+                  <span className="mb-1.5 block text-xs font-semibold uppercase tracking-wider text-slate-400">Session Quality</span>
+                  <div className="flex gap-2">
+                    {QUALITY_OPTS.map((q) => (
+                      <button key={q.value} type="button" onClick={() => setQuality(q.value)}
+                        className={`flex-1 rounded-xl border py-2 text-xs font-semibold transition ${quality === q.value ? "border-emerald-500/50 bg-emerald-500/15 text-emerald-300" : "border-white/8 bg-white/4 text-slate-400 hover:bg-white/8"}`}>
+                        {q.emoji} {q.label}
+                      </button>
+                    ))}
+                  </div>
+                </label>
+              </div>
+            </div>
+            <Input label="Notes (optional)" value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="What did you work on?" />
+            
+            <Button 
+              variant="success" 
+              type="submit" 
+              disabled={submittingSession || !uploadFile}
+              className="w-full"
+            >
+              {submittingSession ? "Submitting..." : "Submit Session with Proof"}
+            </Button>
+            
+            {!uploadFile && (
+              <div className="rounded-lg border border-amber-500/30 bg-amber-500/10 p-3">
+                <p className="text-xs text-amber-300 font-semibold">Required:</p>
+                <p className="text-xs text-amber-200 mt-1">Please upload proof of work before submitting your session.</p>
+              </div>
+            )}
+          </form>
+        </div>
       </section>
 
       {/* Charts & History */}
@@ -271,7 +394,7 @@ export default function SkillDetailPage({ skill, logs, insight, onLog, onRefresh
                             <div key={proof.id} className="relative group">
                               {proof.file_type?.startsWith("image/") ? (
                                 <img
-                                  src={`${API_BASE.replace("/api/v1", "")}/uploads/${proof.file_url.split("/").pop()}`}
+                                  src={`http://localhost:8000/uploads/${proof.file_url.split("/").pop()}`}
                                   alt={proof.file_name}
                                   className="w-full h-16 object-cover rounded-lg border border-purple-500/30"
                                 />
