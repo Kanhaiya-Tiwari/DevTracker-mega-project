@@ -4,10 +4,20 @@ npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 
-# Environment variables
+# Environment variables - CRITICAL SECURITY
 .env
 .env.local
 .env.production
+.env.development
+.env.test
+*.env
+
+# Virtual Environments
+.venv/
+venv/
+env/
+.env/
+*.venv
 
 # Build outputs
 dist/
@@ -51,7 +61,68 @@ coverage/
 .pnpm-debug.log*
 .pnpm-error.log*
 
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+pip-log.txt
+pip-delete-this-directory.txt
+
+# Security - Sensitive files
+*.key
+*.pem
+*.crt
+*.p12
+*.pfx
+secret*
+private*
+credentials*
+config*.json
+api_keys*
+
 # Misc
 *.orig
 *.rej
 .cache/
+*.tar.gz
+*.tar
+backend-image*
+
+# Terraform - State files (CRITICAL - Contains sensitive data)
+*.tfstate
+*.tfstate.*
+.terraform/
+.terraform.lock.hcl
+.terraform.tfstate
+.terraform.tfstate.backup
+override.tf
+override.tf.json
+
+# Kubernetes - Secrets (CRITICAL - Contains credentials)
+secrets.yml
+secret*.yml
+*secret*.yaml
+
+# Ansible - Vault and sensitive files
+*.vault
+ansible/vault*
+
+# AWS - Credentials
+.aws/
+*.pem
+*.key
+credentials
+
+# API Keys and Secrets (CRITICAL)
+variables.tf
+*credentials*
+*api_key*
+*api_secret*
+godaddy_*
+
+# Backup files
+*.backup
+*.bak
+*~
