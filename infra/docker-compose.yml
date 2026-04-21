@@ -29,12 +29,9 @@ services:
     environment:
       DATABASE_URL: postgresql+asyncpg://devtrackr:${POSTGRES_PASSWORD}@postgres:5432/devtrackr
       REDIS_URL: redis://redis:6379/0
-      OPENROUTER_API_KEY: ${OPENROUTER_API_KEY}
-      OPENROUTER_MODEL: ${OPENROUTER_MODEL:-nvidia/nemotron-nano-9b-v2:free}
-      GEMINI_API_KEY: ${GEMINI_API_KEY}
-      GEMINI_MODEL: ${GEMINI_MODEL:-gemini-1.5-flash}
-      USE_GEMINI: ${USE_GEMINI:-true}
-      JWT_SECRET: ${JWT_SECRET}
+      OPENROUTER_API_KEY: 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
+      OPENROUTER_MODEL: nvidia/nemotron-3-super-120b-a12b:free
+      JWT_SECRET: ${JWT_SECRET:-devtrackr_secret}
     depends_on:
       postgres: { condition: service_healthy }
       redis:    { condition: service_healthy }
