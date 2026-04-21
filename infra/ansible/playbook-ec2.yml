@@ -41,6 +41,26 @@
       args:
         creates: /usr/local/bin/helm
 
+    - name: Install k3s (lightweight Kubernetes)
+      shell: |
+        PUBLIC_IP=$(curl -s http://169.254.169.254/latest/meta-data/public-ipv4)
+        if [ -n "$PUBLIC_IP" ]; then
+            curl -sfL https://get.k3s.io | INSTALL_K3S_EXEC="server --tls-san $PUBLIC_IP" sh -
+        else
+            curl -sfL https://get.k3s.io | sh -
+        fi
+      args:
+        creates: /usr/local/bin/k3s
+
+    - name: Wait for k3s to be ready
+      shell: |
+        until kubectl get nodes 2>/dev/null; do
+          echo "Waiting for k3s to start..."
+          sleep 5
+        done
+      environment:
+        KUBECONFIG: /etc/rancher/k3s/k3s.yaml
+
     - name: Verify k3s is running
       command: kubectl get nodes
       environment:
@@ -85,13 +105,6 @@
         chown -R ubuntu:ubuntu /home/ubuntu/.kube
         chmod 600 /home/ubuntu/.kube/config
         echo 'export KUBECONFIG=/home/ubuntu/.kube/config' >> /home/ubuntu/.bashrc
-
-    - name: Clone DevTracker repository
-      git:
-        repo: https://github.com/Kanhaiya-Tiwari/DevTracker-mega-project.git
-        dest: /home/ubuntu/DevTracker-mega-project
-        version: master
-      become_user: ubuntu
 
     - name: Deploy DevTracker Application
       shell: |

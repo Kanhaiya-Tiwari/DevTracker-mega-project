@@ -6,17 +6,17 @@
   <img src="https://img.shields.io/badge/PostgreSQL_16-316192?style=for-the-badge&logo=postgresql&logoColor=white" />
   <img src="https://img.shields.io/badge/Redis_7-DC382D?style=for-the-badge&logo=redis&logoColor=white" />
   <img src="https://img.shields.io/badge/Docker-2496ED?style=for-the-badge&logo=docker&logoColor=white" />
-  <img src="https://img.shields.io/badge/Kubernetes-326CE5?style=for-the-badge&logo=kubernetes&logoColor=white" />
+  <img src="https://img.shields.io/badge/k3s-FF63AC?style=for-the-badge&logo=kubernetes&logoColor=white" />
   <img src="https://img.shields.io/badge/Terraform-7B42BC?style=for-the-badge&logo=terraform&logoColor=white" />
-  <img src="https://img.shields.io/badge/AWS_EKS-FF9900?style=for-the-badge&logo=amazonaws&logoColor=white" />
-  <img src="https://img.shields.io/badge/GitHub_Actions-2088FF?style=for-the-badge&logo=githubactions&logoColor=white" />
+  <img src="https://img.shields.io/badge/AWS_EC2-FF9900?style=for-the-badge&logo=amazonaws&logoColor=white" />
+  <img src="https://img.shields.io/badge/Ansible-EE0000?style=for-the-badge&logo=ansible&logoColor=white" />
   <img src="https://img.shields.io/badge/Prometheus-E6522C?style=for-the-badge&logo=prometheus&logoColor=white" />
   <img src="https://img.shields.io/badge/Grafana-F46800?style=for-the-badge&logo=grafana&logoColor=white" />
 </p>
 
 **Intelligent Skill Execution System** — Track skills, log practice sessions, earn XP, maintain streaks, get AI coaching, and visualize your learning journey.
 
-DevTrackr is a full-stack application with an AI-powered coaching engine, gamification system, and a complete DevSecOps pipeline deploying to AWS EKS with Prometheus + Grafana monitoring.
+DevTrackr is a full-stack application with an AI-powered coaching engine, gamification system, and a complete DevOps pipeline deploying to AWS EC2 with k3s, Ansible, Prometheus + Grafana monitoring.
 
 ---
 
@@ -63,9 +63,9 @@ DevTrackr is a full-stack application with an AI-powered coaching engine, gamifi
 | AI | OpenRouter API · nvidia/nemotron-nano-9b-v2:free |
 | Auth | JWT (python-jose · passlib/bcrypt) |
 | Containers | Docker · Docker Compose |
-| Orchestration | Kubernetes (EKS) · HPA autoscaling |
-| Infrastructure | Terraform — AWS VPC, EKS, ECR, NAT, IAM |
-| CI/CD | GitHub Actions — DevSecOps pipeline |
+| Orchestration | k3s (lightweight Kubernetes) |
+| Infrastructure | Terraform — AWS EC2, VPC, Security Groups |
+| Deployment | Ansible — Automated setup & deployment |
 | Monitoring | Prometheus · Grafana (20-panel dashboard) |
 | Security Scans | Trivy · Gitleaks · Snyk · Docker Scout · tfsec · Bandit |
 
@@ -142,33 +142,44 @@ devtrackr/
 │   ├── docker-compose.yml
 │   ├── .env
 │   ├── kubernetes/
-│   │   ├── namespace.yaml
-│   │   ├── backend-deployment.yaml    # Deploy + Svc + HPA
-│   │   ├── frontend-deployment.yaml   # Deploy + Svc + HPA
-│   │   ├── postgres-statefulset.yaml  # StatefulSet + PVC
-│   │   ├── redis-deployment.yaml      # Deploy + Service
-│   │   └── ingress.yaml              # Nginx ingress
+│   │   ├── namespace.yml
+│   │   ├── configmap.yml
+│   │   ├── secrets.yml
+│   │   ├── backend-deployment.yml
+│   │   ├── backend-service.yml
+│   │   ├── frontend-deployment.yml
+│   │   ├── frontend-service.yml
+│   │   ├── postgres-statefulset.yml
+│   │   ├── postgres-service.yml
+│   │   ├── redis-statefulset.yml
+│   │   ├── redis-service.yml
+│   │   ├── nginx-configmap.yml
+│   │   ├── ingress-domain.yml
+│   │   ├── pv.yml                 # Optional for k3s
+│   │   └── pvc.yml                # Optional for k3s
 │   ├── terraform/
-│   │   ├── main.tf                # AWS VPC, EKS, ECR, IAM, NAT
-│   │   ├── variables.tf
-│   │   └── outputs.tf
+│   │   ├── EC2/
+│   │   │   ├── main.tf           # AWS VPC, EC2, Security Groups
+│   │   │   ├── variables.tf
+│   │   │   ├── outputs.tf
+│   │   │   └── userdata.sh       # EC2 bootstrap script
+│   │   └── backend_lock/
+│   │       ├── main.tf           # S3 bucket + DynamoDB for state
+│   │       └── terraform.tfstate
+│   ├── ansible/
+│   │   └── playbook-ec2.yml      # Automated deployment playbook
+│   ├── scripts/
+│   │   └── update-godaddy-dns.sh # Optional DNS update script
 │   └── monitoring/
 │       ├── namespace.yaml
 │       ├── prometheus/
-│       │   ├── config.yaml          # Scrape configs + 8 alerts
-│       │   ├── deployment.yaml      # Prometheus + RBAC
-│       │   └── exporters.yaml       # kube-state-metrics + node-exporter
+│       │   ├── config.yaml       # Scrape configs + alerts
+│       │   ├── deployment.yaml   # Prometheus + RBAC
+│       │   └── exporters.yaml    # kube-state-metrics + node-exporter
 │       └── grafana/
 │           ├── deployment.yaml
 │           ├── secret.yaml
 │           └── dashboards-configmap.yaml  # 20-panel dashboard
-└── .github/workflows/
-    ├── pipeline.yml               # Orchestrator (push + dispatch)
-    ├── lint-test.yml              # Lint & test (workflow_call)
-    ├── security-scan.yml          # Security scans (workflow_call)
-    ├── docker-build.yml           # Build → ECR (workflow_call)
-    ├── terraform-deploy.yml       # AWS infra (workflow_call)
-    └── k8s-deploy.yml             # EKS deploy (workflow_call)
 ```
 
 ---
@@ -308,157 +319,83 @@ Full interactive docs: http://localhost:8000/docs
 
 ---
 
-## CI/CD Pipeline (DevSecOps)
-
-Uses modular **reusable workflows** — each triggers via `workflow_call`, orchestrated by one master pipeline.
-
-### Pipeline Flow
-
-```
-push to main / workflow_dispatch
-         │
-         ▼
-┌─────────────────────────────────────┐
-│  Stage 1 (parallel)                 │
-│  ┌──────────────┐  ┌─────────────┐  │
-│  │ 🧪 Lint &    │  │ 🔒 Security │  │
-│  │    Test       │  │    Scan     │  │
-│  │  Ruff, Bandit │  │  Trivy,    │  │
-│  │  pytest,      │  │  Gitleaks, │  │
-│  │  npm build    │  │  Snyk,     │  │
-│  │               │  │  Scout     │  │
-│  └──────────────┘  └─────────────┘  │
-└─────────────────────────────────────┘
-         │
-         ▼
-┌─────────────────────────────────────┐
-│  Stage 2 (parallel)                 │
-│  ┌──────────────┐  ┌─────────────┐  │
-│  │ 🏗️ Terraform │  │ 🐳 Docker   │  │
-│  │  AWS VPC,    │  │  Build &    │  │
-│  │  EKS, ECR,   │  │  Push ECR   │  │
-│  │  IAM, NAT    │  │  + Trivy    │  │
-│  │  + tfsec     │  │  scan       │  │
-│  └──────────────┘  └─────────────┘  │
-└─────────────────────────────────────┘
-         │
-         ▼
-┌─────────────────────────────────────┐
-│  Stage 3                            │
-│  ┌─────────────────────────────┐    │
-│  │ ☸️  K8s Deploy to EKS        │    │
-│  │  namespace, secrets, DB,    │    │
-│  │  redis, backend, frontend,  │    │
-│  │  ingress, monitoring stack  │    │
-│  └─────────────────────────────┘    │
-└─────────────────────────────────────┘
-         │
-         ▼
-┌─────────────────────────────────────┐
-│  Stage 4                            │
-│  ┌─────────────────────────────┐    │
-│  │ 📢 Notify (Summary Table)   │    │
-│  └─────────────────────────────┘    │
-└─────────────────────────────────────┘
-```
-
-### Workflow Files
-
-| File | Trigger | Purpose |
-|------|---------|---------|
-| `pipeline.yml` | `push` (main/develop) + `workflow_dispatch` | Orchestrates everything |
-| `lint-test.yml` | `workflow_call` | Ruff · Bandit · Safety · pytest · npm build |
-| `security-scan.yml` | `workflow_call` | Trivy FS/IaC · Gitleaks · Snyk · Docker Scout |
-| `docker-build.yml` | `workflow_call` | Buildx multi-stage → ECR + image vulnerability scan |
-| `terraform-deploy.yml` | `workflow_call` | Terraform plan/apply + tfsec security scan |
-| `k8s-deploy.yml` | `workflow_call` | Full EKS deployment + monitoring stack |
-
-### Required GitHub Secrets
-
-| Secret | Description |
-|--------|-------------|
-| `AWS_ACCESS_KEY_ID` | AWS IAM access key |
-| `AWS_SECRET_ACCESS_KEY` | AWS IAM secret key |
-| `POSTGRES_PASSWORD` | Production DB password |
-| `JWT_SECRET` | Production JWT secret |
-| `OPENROUTER_API_KEY` | AI API key |
-| `SNYK_TOKEN` | *(optional)* Dependency scanning |
-| `GITLEAKS_LICENSE` | *(optional)* Secret detection |
-
-### GitHub Variables
-
-| Variable | Default |
-|----------|---------|
-| `AWS_REGION` | `ap-south-1` |
-
----
-
 ## AWS Infrastructure (Terraform)
 
-Provisions a production-grade AWS environment:
+Provisions AWS EC2 instance with k3s for production deployment:
 
 | Resource | Details |
 |----------|---------|
-| VPC | Public + private subnets across 2 AZs |
-| NAT Gateway | Outbound internet for private subnets |
-| EKS Cluster | Managed Kubernetes v1.31 |
-| Node Group | t3.medium, autoscaling 1–5 nodes |
-| ECR | Private repos: devtrackr-backend, devtrackr-frontend |
-| IAM | Least-privilege roles for cluster + nodes |
+| VPC | 10.0.0.0/16 CIDR block |
+| Subnet | 10.0.1.0/24, public with internet gateway |
+| EC2 Instance | Ubuntu with k3s pre-installed via userdata |
+| Security Group | Ports: 22 (SSH), 80 (HTTP), 3000 (Frontend), 8000 (Backend), 5432 (PostgreSQL), 6379 (Redis) |
 | S3 Backend | Remote state with DynamoDB locking |
 
-### First-Time Setup
+### First-Time Setup (Backend State)
 
 ```bash
-aws s3 mb s3://devtrackr-tf-state --region ap-south-1
-
-aws dynamodb create-table \
-  --table-name devtrackr-tf-lock \
-  --attribute-definitions AttributeName=LockID,AttributeType=S \
-  --key-schema AttributeName=LockID,KeyType=HASH \
-  --billing-mode PAY_PER_REQUEST \
-  --region ap-south-1
-```
-
-### Manual Apply
-
-```bash
-cd infra/terraform
+cd infra/terraform/backend_lock
 terraform init
-terraform plan -var="aws_region=ap-south-1"
-terraform apply -var="aws_region=ap-south-1"
+terraform apply
 ```
+
+This creates:
+- S3 bucket for Terraform state
+- DynamoDB table for state locking
+
+### Deploy EC2 Instance
+
+```bash
+cd infra/terraform/EC2
+terraform init
+terraform plan
+terraform apply
+```
+
+**Required Terraform Variables:**
+- `instance_type` - EC2 instance type (default: t3.medium)
+- `key_name` - AWS key pair name for SSH access
+- `godaddy_api_key` - (optional) GoDaddy API key for DNS
+- `godaddy_api_secret` - (optional) GoDaddy API secret
 
 ---
 
-## Kubernetes
+## Deployment (Ansible + k3s)
 
-### Deploy
+The EC2 instance automatically runs the Ansible playbook via userdata script. The playbook handles:
+
+### Automated Deployment Flow
+
+1. **System Setup** - Update packages, install dependencies
+2. **k3s Installation** - Lightweight Kubernetes with TLS SAN for public IP
+3. **kubectl & Helm** - Install Kubernetes tools
+4. **NGINX Ingress** - Install ingress controller
+5. **Application Deploy** - Apply all Kubernetes manifests
+6. **Monitoring Stack** - Deploy Prometheus & Grafana
+
+### Manual Deployment (if needed)
+
+If you need to manually deploy after SSH into EC2:
 
 ```bash
-kubectl apply -f infra/kubernetes/namespace.yaml
-
-kubectl -n devtrackr create secret generic devtrackr-secrets \
-  --from-literal=postgres-user=devtrackr \
-  --from-literal=postgres-password=YOUR_PASSWORD \
-  --from-literal=JWT_SECRET=YOUR_SECRET \
-  --from-literal=DATABASE_URL="postgresql+asyncpg://devtrackr:YOUR_PASSWORD@postgres:5432/devtrackr" \
-  --from-literal=REDIS_URL="redis://redis:6379/0" \
-  --from-literal=OPENROUTER_API_KEY=YOUR_KEY \
-  --from-literal=OPENROUTER_MODEL="nvidia/nemotron-nano-9b-v2:free"
-
-kubectl apply -f infra/kubernetes/
+cd /home/ubuntu/DevTracker-mega-project/infra/ansible
+ansible-playbook playbook-ec2.yml
 ```
+
+### Kubernetes Namespace
+
+All resources are deployed in the `devtracker` namespace.
 
 ### Key Features
 
 | Feature | Details |
 |---------|---------|
-| HPA | Backend 2–10 pods @ 60% CPU · Frontend 2–6 pods @ 65% CPU |
-| Rolling Updates | Zero-downtime: maxSurge 1, maxUnavailable 0 |
+| Replicas | Backend: 2 · Frontend: 2 |
+| Rolling Updates | Zero-downtime deployments |
 | Health Checks | Liveness + readiness probes on all services |
-| StatefulSet | PostgreSQL with 10Gi persistent volume |
-| Ingress | `devtrackr.io` → frontend · `api.devtrackr.io` → backend |
+| StatefulSet | PostgreSQL with 10Gi persistent volume (dynamic provisioning) |
+| Redis | StatefulSet with 2Gi persistent volume |
+| Ingress | Domain-based routing via NGINX Ingress Controller |
 
 ---
 
@@ -468,13 +405,13 @@ kubectl apply -f infra/kubernetes/
 
 Scrapes metrics from:
 
-- **DevTrackr Backend** — FastAPI request/response metrics
-- **DevTrackr Frontend** — Nginx status
+- **DevTrackr Backend** — FastAPI request/response metrics (namespace: devtracker)
+- **DevTrackr Frontend** — Nginx status (namespace: devtracker)
 - **Node Exporter** — Host CPU, memory, disk
 - **kube-state-metrics** — Pod, deployment, HPA states
 - **cAdvisor** — Container resource usage
 
-**8 Alert Rules:** BackendDown · HighErrorRate (>5%) · HighLatency (P95 >2s) · PodCrashLooping · HighMemory (>90%) · HighCPU (>80%) · PostgresDown · RedisDown
+**Alert Rules:** BackendDown · HighErrorRate (>5%) · HighLatency (P95 >2s) · PodCrashLooping · HighMemory (>90%) · HighCPU (>80%) · PostgresDown · RedisDown
 
 ### Grafana Dashboard (20 Panels)
 
@@ -490,10 +427,12 @@ Scrapes metrics from:
 
 ### Deploy Monitoring
 
+Monitoring is automatically deployed by the Ansible playbook. Manual deployment:
+
 ```bash
 kubectl apply -f infra/monitoring/namespace.yaml
 kubectl apply -f infra/monitoring/prometheus/
 kubectl apply -f infra/monitoring/grafana/
 ```
 
-Access: `http://grafana.devtrackr.io` · Default login: `admin` / (set in `grafana-secret.yaml`)
+Access: Port-forward to access Grafana locally or configure ingress for domain access. Default login: `admin` / (set in `grafana-secret.yaml`)
