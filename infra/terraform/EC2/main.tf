@@ -115,6 +115,12 @@ resource "aws_instance" "ec2" {
 
   key_name = var.key_name
 
+  root_block_device {
+    volume_type           = "gp3"
+    volume_size           = 30
+    delete_on_termination = true
+  }
+
   tags = {
     Name = "Devtracker_ec2"
   }
