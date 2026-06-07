@@ -354,9 +354,7 @@ terraform apply
 - `key_name` - AWS key pair name for SSH access
 - `godaddy_api_key` - (optional) GoDaddy API key for DNS
 - `godaddy_api_secret` - (optional) GoDaddy API secret
-
 ---
-
 ## Deployment (Ansible + k3s)
 
 The EC2 instance automatically runs the Ansible playbook via userdata script. The playbook handles:
