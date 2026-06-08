@@ -46,7 +46,6 @@ DevTrackr is a full-stack application with an AI-powered coaching engine, gamifi
 
 - **User Settings** — Avatar, bio, location, GitHub URL, public/private toggle
 - **Analytics Dashboard** — Peak hours, consistency score, study patterns
-
 ---
 ## Tech Stack
 
