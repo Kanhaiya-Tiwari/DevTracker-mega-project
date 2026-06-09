@@ -16,7 +16,6 @@
 **Intelligent Skill Execution System** — Track skills, log practice sessions, earn XP, maintain streaks, get AI coaching, and visualize your learning journey.
 
 DevTrackr is a full-stack application with an AI-powered coaching engine, gamification system, and a complete DevOps pipeline deploying to AWS EC2 with k3s, Ansible, Prometheus + Grafana monitoring.
-
 ## Features
 
 - **Skill Tracking** — Create skills with target hours, deadlines, difficulty levels, and phases
