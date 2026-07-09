@@ -428,5 +428,4 @@ kubectl apply -f infra/monitoring/namespace.yaml
 kubectl apply -f infra/monitoring/prometheus/
 kubectl apply -f infra/monitoring/grafana/
 ```
-
 Access: Port-forward to access Grafana locally or configure ingress for domain access. Default login: `admin` / (set in `grafana-secret.yaml`)
