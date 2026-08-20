@@ -25,7 +25,6 @@ DevTrackr is a full-stack application with an AI-powered coaching engine, gamifi
 
 ### AI Engine (OpenRouter)
 
-
 - **AI Chat Coach** — Conversational AI for learning tips and guidance
 - **Daily Tips** — Auto-generated motivational and strategic tips
 - **Skill Suggestions** — AI recommends what to learn next
