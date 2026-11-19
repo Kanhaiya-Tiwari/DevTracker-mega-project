@@ -16,7 +16,7 @@ COPY --exclude=.env . .
 RUN npm run build
 
 # Production stage
-FROM nginx:alpine AS production
+FROM nginxinc/nginx-unprivileged:1.27-alpine AS production
 
 # Copy built application
 COPY --from=builder /app/dist /usr/share/nginx/html
@@ -25,7 +25,8 @@ COPY --from=builder /app/dist /usr/share/nginx/html
 COPY nginx.conf /etc/nginx/conf.d/default.conf
 
 # Expose port
-EXPOSE 80
+USER 101
+EXPOSE 8080
 
 # Start nginx
 CMD ["nginx", "-g", "daemon off;"]

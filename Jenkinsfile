@@ -111,6 +111,8 @@ pipeline {
                     rsync -a --delete \
                       --exclude='/.env' \
                       --exclude='/.env.*' \
+                      --exclude='**/.env' \
+                      --exclude='**/.env.*' \
                       --exclude='/.git/' \
                       --exclude='/uploads/' \
                       "$WORKSPACE/" "$DEPLOY_DIRECTORY/"
