@@ -14,9 +14,9 @@ jenkins:
 jobs:
   - script: |
       pipelineJob('devtrackernew') {
-        description('Polls GitHub, tests DevTracker, pushes Docker Hub images, and deploys them.')
+        description('Builds on GitHub push to master, tests DevTracker, pushes Docker Hub images, and deploys them.')
         triggers {
-          scm('H/2 * * * *')
+          githubPush()
         }
         definition {
           cpsScm {
