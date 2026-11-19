@@ -13,7 +13,7 @@ jenkins:
 
 jobs:
   - script: |
-      pipelineJob('devtracker-deploy') {
+      pipelineJob('devtrackernew') {
         description('Polls GitHub, tests DevTracker, pushes Docker Hub images, and deploys them.')
         triggers {
           scm('H/2 * * * *')

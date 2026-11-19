@@ -154,28 +154,46 @@ The library must provide `vars/docker_build.groovy` and
 
 ## 7. Make Jenkins build automatically on push
 
-The pipeline uses SCM polling every two minutes; a GitHub webhook is not
-required. The Jenkins job must watch the same branch you push to:
+The Jenkins configuration and build logs must refer to the same job. The
+current Job DSL config creates `devtrackernew` and polls `newkanha` every two
+minutes. If you have already deployed Jenkins before this change, update its
+configuration on EC2 and recreate Jenkins once to apply it:
 
-1. Open the `devtracker-deploy` job (or the existing DevTracker pipeline job)
-   and select **Configure**.
+```bash
+cd /srv/devtracker
+git fetch origin newkanha
+git show FETCH_HEAD:infra/jenkins/jenkins.yaml | \
+  sudo tee infra/jenkins/jenkins.yaml >/dev/null
+docker compose up -d --build --force-recreate jenkins
+```
+
+This recreates only the Jenkins container; its named `jenkins_data` volume
+preserves job history and Jenkins configuration. Do not remove volumes.
+
+Then open Jenkins and confirm the `devtrackernew` job is configured as follows:
+
+1. Open the `devtrackernew` job and select **Configure**.
 2. Under **Pipeline → Definition**, choose **Pipeline script from SCM**.
 3. Choose **Git**, set repository URL to
    `https://github.com/Kanhaiya-Tiwari/DevTracker-mega-project.git`, and set
    branch specifier to `*/newkanha`.
 4. Set script path to `Jenkinsfile`.
-5. Under **Build Triggers**, enable **Poll SCM** and enter
-   `H/2 * * * *`, then save.
-6. Run **Build Now** once after saving. Later pushes to `newkanha` should be
-   picked up on the next poll (within about two minutes).
+5. Under **Build Triggers**, enable **Poll SCM** and enter `H/2 * * * *`.
+   Save the job configuration.
+6. Open **Configure → Build Triggers → Poll SCM → (?)** or the job's polling
+   log and confirm a polling schedule is active. Run **Build Now** once after
+   saving; after that, pushes to `newkanha` should be detected within about
+   two minutes.
 
-Do not keep multiple active jobs deploying the same Compose project. If there
-is both a `devtrackernew` job and a `devtracker-deploy` job, configure one and
-disable the other to prevent duplicate deployments.
+The Jenkinsfile also declares the same SCM polling schedule. Do not keep
+another active DevTracker deployment job (for example `devtracker-deploy`)
+polling the same branch, because it may run duplicate deployments.
 
-For a push that does not start a build, check the job's configured branch and
-SCM polling log at **Job → Configure → Build Triggers → Poll SCM**. In the
-build console, confirm Jenkins checked out the commit you just pushed.
+For a push that does not start a build, open **devtrackernew → Git Polling
+Log**. Confirm Jenkins is polling the `newkanha` branch and that the next poll
+detects a changed revision. If it reports no changes, verify the push appears
+on GitHub's `newkanha` branch and that the Jenkins job repository URL and
+branch specifier match exactly.
 
 ## 8. Normal operations
 
