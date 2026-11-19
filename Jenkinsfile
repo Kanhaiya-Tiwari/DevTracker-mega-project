@@ -119,6 +119,9 @@ pipeline {
                       --exclude='/.env.*' \
                       --exclude='**/.env' \
                       --exclude='**/.env.*' \
+                      --exclude='**/.pytest_cache/' \
+                      --exclude='**/__pycache__/' \
+                      --exclude='*.py[cod]' \
                       --exclude='/.git/' \
                       --exclude='/uploads/' \
                       "$WORKSPACE/" "$DEPLOY_DIRECTORY/"
