@@ -165,12 +165,23 @@ pipeline {
                 sh '''
                     set -eu
                     for attempt in $(seq 1 30); do
-                      if curl --fail --silent http://127.0.0.1/health; then
+                      if curl --fail --silent --show-error --max-time 5 \
+                        --output /dev/null --write-out 'HTTP %{http_code}\\n' \
+                        http://127.0.0.1/health; then
                         echo
                         exit 0
                       fi
                       sleep 2
                     done
+                    echo "DevTracker health check failed; collecting deployment diagnostics" >&2
+                    docker compose \
+                      --project-directory "$DEPLOY_DIRECTORY" \
+                      --env-file "$COMPOSE_ENV_FILE" \
+                      -f "$COMPOSE_FILE" ps -a || true
+                    docker compose \
+                      --project-directory "$DEPLOY_DIRECTORY" \
+                      --env-file "$COMPOSE_ENV_FILE" \
+                      -f "$COMPOSE_FILE" logs --no-color --tail=150 backend postgres frontend || true
                     echo "DevTracker health check failed after deployment" >&2
                     exit 1
                 '''
