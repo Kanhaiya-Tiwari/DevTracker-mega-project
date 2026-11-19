@@ -164,10 +164,11 @@ The library must provide `vars/docker_build.groovy` and
 ## 7. Make Jenkins build automatically on push
 
 The Jenkins configuration creates `devtrackernew`, checks out `master`, and
-uses the GitHub push trigger (not periodic polling). The GitHub plugin must be
-installed. If you have already deployed Jenkins before this change, update
-the plugin list and Jenkins configuration on EC2, then rebuild/recreate the
-Jenkins container:
+uses the GitHub push trigger plus a two-minute SCM polling fallback. The
+webhook starts builds immediately; polling catches pushes if the webhook is
+missing or temporarily unavailable. The GitHub plugin must be installed. If
+you have already deployed Jenkins before this change, update the plugin list
+and Jenkins configuration on EC2, then rebuild/recreate the Jenkins container:
 
 ```bash
 cd /srv/devtracker
@@ -193,8 +194,9 @@ Then open Jenkins and confirm the `devtrackernew` job is configured as follows:
    `https://github.com/Kanhaiya-Tiwari/DevTracker-mega-project.git`, and set
    branch specifier to `*/master`.
 4. Set script path to `Jenkinsfile`.
-5. Under **Build Triggers**, enable **GitHub hook trigger for GITScm polling**
-   and save. Do not enable **Poll SCM**.
+5. Under **Build Triggers**, enable both **GitHub hook trigger for GITScm
+   polling** and **Poll SCM**. Set the polling schedule to `H/2 * * * *` and
+   save.
 6. In the GitHub repository, open **Settings → Webhooks → Add webhook**:
    - Payload URL:
      `http://EC2_PUBLIC_DNS:8080/github-webhook/`
@@ -203,7 +205,8 @@ Then open Jenkins and confirm the `devtrackernew` job is configured as follows:
    - Save the webhook.
 7. Run **Build Now** once. This confirms Jenkins can build and registers the
    pipeline configuration. Afterward, pushing a commit to `master` should
-   start a build from GitHub's webhook.
+   start a build from GitHub's webhook; SCM polling is the fallback if the
+   webhook does not arrive.
 
 Replace `EC2_PUBLIC_DNS` with the instance's actual public DNS name. In
 GitHub **Settings → Webhooks → Recent Deliveries**, select a push delivery:

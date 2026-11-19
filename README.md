@@ -64,10 +64,11 @@ health, and Docker logs filterable by `service_name`. Prometheus scrapes the
 backend, EC2 host, and cAdvisor; Promtail forwards Docker container logs to
 Loki.
 
-Jenkins checks out the DevTracker repository configured in the Jenkins job,
-starts on a GitHub push to `master` when the repository webhook is configured
-(see [setup.md](setup.md)), runs Trivy dependency/secret scans and backend
-tests, builds and scans the backend and frontend images, and pushes
+Jenkins checks out the DevTracker repository configured in the Jenkins job
+and starts on a GitHub push to `master` when the repository webhook is
+configured, with a two-minute SCM polling fallback (see [setup.md](setup.md)).
+It runs Trivy dependency/secret scans and backend tests, builds and scans the
+backend and frontend images, and pushes
 `kanhaiyatiwari/devtracker-backend` and
 `kanhaiyatiwari/devtracker-frontend` with commit and `latest` tags. It then
 updates the deployment files without replacing `.env` or uploads, deploys
