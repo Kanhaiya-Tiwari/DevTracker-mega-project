@@ -38,7 +38,7 @@ services:
     logging: *default-logging
 
   backend:
-    image: ${DOCKERHUB_NAMESPACE:-devtracker}/devtracker-backend:${IMAGE_TAG:-latest}
+    image: ${DOCKERHUB_NAMESPACE:-kanhaiyatiwari}/devtracker-backend:${IMAGE_TAG:-latest}
     build:
       context: ./backend
       dockerfile: Dockerfile
@@ -69,7 +69,7 @@ services:
     logging: *default-logging
 
   frontend:
-    image: ${DOCKERHUB_NAMESPACE:-devtracker}/devtracker-frontend:${IMAGE_TAG:-latest}
+    image: ${DOCKERHUB_NAMESPACE:-kanhaiyatiwari}/devtracker-frontend:${IMAGE_TAG:-latest}
     build:
       context: ./frontend
       dockerfile: Dockerfile.prod

@@ -77,8 +77,23 @@ it with `.env.example`; doing so would change credentials and lose access to
 existing services/data.
 
 For Docker Hub publishing, add a Jenkins username/password credential with ID
-`dockerhub-creds`. Use your Docker Hub username and an access token as the
-password; do not use or commit your account password.
+`docker-hub-credentials`. Use your Docker Hub username and an access token as
+the password; do not use or commit your account password.
+
+Configure the Jenkins shared library at **Manage Jenkins → System → Global
+Pipeline Libraries**:
+
+1. Add a library named `Shared` with default version `master`.
+2. Select **Modern SCM → Git** and set the repository URL to
+   `https://github.com/Kanhaiya-Tiwari/jenkins-shared-libraries.git`.
+3. Leave credentials empty if the repository is public. If it is private,
+   select a Jenkins credential with read access to that repository.
+4. Save the Jenkins system configuration.
+
+The DevTracker `Jenkinsfile` uses the library's `docker_build` and
+`docker_push` steps. Keep these files in the library repository's `vars/`
+directory. The library's current `run_tests.groovy` is only a placeholder;
+the pipeline runs DevTracker backend tests itself.
 
 ## 4. Access services
 
@@ -88,10 +103,10 @@ admin ports from your IP in the AWS security group, open Grafana at
 `http://23.22.133.34:3000`, Prometheus at `http://23.22.133.34:9090`, and
 Jenkins at `http://23.22.133.34:8080`. Use the credentials configured in the
 server's `.env`. Do not make the ports public to all IPs. The Jenkins
-`devtracker-deploy` job polls GitHub every two minutes, clones into a clean
-workspace, runs backend tests, builds and pushes Docker Hub images, deploys
-them, and checks the public health endpoint. It does not remove Compose
-volumes or application data.
+`devtracker-deploy` job checks out the repository configured in Jenkins, runs
+Trivy scans and backend tests, builds and pushes backend/frontend Docker Hub
+images, deploys them, and checks the public health endpoint. It preserves
+`.env`, uploaded files, Compose volumes, and application data.
 
 For build emails, configure the SMTP server in Jenkins **Manage Jenkins →
 System → Extended E-mail Notification**, then set

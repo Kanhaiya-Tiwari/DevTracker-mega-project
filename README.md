@@ -61,18 +61,34 @@ health, and Docker logs filterable by `service_name`. Prometheus scrapes the
 backend, EC2 host, and cAdvisor; Promtail forwards Docker container logs to
 Loki.
 
-Jenkins polls the public GitHub `master` branch every two minutes. It cleans
-its workspace, clones the repository, validates Compose, runs backend tests,
-builds and pushes the `devtracker/devtracker-backend` and
-`devtracker/devtracker-frontend` images with commit and `latest` tags, then
-deploys and checks `/health`. Before the first successful build, add a
-Docker Hub username/access-token credential in Jenkins with ID
-`dockerhub-creds`. The Jenkins container can access the Docker socket; keep
-its web port restricted to your IP and use a strong admin password. Configure
-SMTP in Jenkins **Manage Jenkins → System → Extended E-mail Notification**,
-then set `SMTP_NOTIFICATIONS_ENABLED=true` in `/srv/devtracker/.env` and
-recreate Jenkins to receive build success/failure email at
-`knhapndt@gmail.com`.
+Jenkins checks out the DevTracker repository configured in the Jenkins job,
+runs Trivy dependency/secret scans and backend tests, builds and scans the
+backend and frontend images, and pushes
+`kanhaiyatiwari/devtracker-backend` and
+`kanhaiyatiwari/devtracker-frontend` with commit and `latest` tags. It then
+updates the deployment files without replacing `.env` or uploads, deploys
+both images, and checks `/health`. Configure the Docker Hub username/access
+token in Jenkins using credential ID `docker-hub-credentials`. Configure SMTP
+in Jenkins **Manage Jenkins → System → Extended E-mail Notification** and set
+`SMTP_NOTIFICATIONS_ENABLED=true` in `/srv/devtracker/.env` to receive
+success/failure email at `knhapndt@gmail.com`.
+
+The pipeline uses the `docker_build` and `docker_push` steps from the
+`Shared` Jenkins Global Pipeline Library. Configure it under **Manage Jenkins
+→ System → Global Pipeline Libraries**:
+
+- Name: `Shared`
+- Default version: `master`
+- Retrieval method: Modern SCM → Git
+- Project repository:
+  `https://github.com/Kanhaiya-Tiwari/jenkins-shared-libraries.git`
+- Credentials: none for a public repository; for a private repository, select
+  a Jenkins credential that can read it.
+
+The library repository must keep its reusable steps under `vars/`, including
+`docker_build.groovy` and `docker_push.groovy`. The `run_tests.groovy` in that
+repository is currently only a placeholder; this pipeline runs the project's
+backend tests directly.
 
 ## Operations
 
