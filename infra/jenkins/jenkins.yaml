@@ -25,7 +25,7 @@ jobs:
                 remote {
                   url('https://github.com/Kanhaiya-Tiwari/DevTracker-mega-project.git')
                 }
-                branch('*/newkanha')
+                branch('*/master')
               }
             }
             scriptPath('Jenkinsfile')
