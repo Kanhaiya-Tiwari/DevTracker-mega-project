@@ -1,134 +1,193 @@
 # EC2 setup and operations
 
-This project runs as a single Docker Compose stack. Kubernetes, Terraform, and
-Ansible are not part of this deployment.
+This guide deploys the complete DevTracker stack on a new Ubuntu EC2 instance.
+The same Docker Compose project starts the website, API, database, Redis,
+Grafana, Prometheus, Loki, and Jenkins.
 
-## 1. Connect to EC2
+## 1. Create and secure the EC2 instance
 
-From the local machine, with the key saved as `~/Downloads/Kanha.pem`:
+Use an Ubuntu Server LTS AMI and a security group with these inbound rules:
+
+| Port | Source | Purpose |
+|---|---|---|
+| 22 | Your public IP `/32` | SSH |
+| 80 | `0.0.0.0/0` | Website |
+| 3000 | Your public IP `/32` | Grafana |
+| 8080 | Your public IP `/32` | Jenkins |
+| 9090 | Your public IP `/32` | Prometheus (no login configured) |
+
+Do not expose database port 5432, Redis port 6379, or Loki port 3100. Restrict
+SSH and the monitoring/admin ports to your IP.
+
+From your computer, connect with the instance's key and public DNS name:
 
 ```bash
 chmod 600 ~/Downloads/Kanha.pem
-ssh -i ~/Downloads/Kanha.pem ubuntu@ec2-23-22-133-34.compute-1.amazonaws.com
+ssh -i ~/Downloads/Kanha.pem ubuntu@EC2_PUBLIC_DNS
 ```
 
-Allow inbound TCP port 22 from your IP and port 80 for the public website in the
-instance's AWS security group. For direct access to Grafana, Jenkins, and
-Prometheus, allow TCP ports 3000, 8080, and 9090 only from your public IP
-(for example, `157.49.44.6/32`). Do not allow these ports from `0.0.0.0/0`;
-Prometheus has no login configured. Do not expose ports 3100, 5432, or 6379.
+Replace `EC2_PUBLIC_DNS` with the public DNS shown in the EC2 console.
 
-## 2. Install Docker Compose
+## 2. Install Docker on EC2
 
-On a new Ubuntu server:
+Run on the Ubuntu instance:
 
 ```bash
 sudo apt-get update
-sudo apt-get install -y ca-certificates curl
+sudo apt-get install -y ca-certificates curl git
 curl -fsSL https://get.docker.com | sudo sh
 sudo systemctl enable --now docker
-sudo docker compose version
+sudo usermod -aG docker ubuntu
 ```
 
-## 3. Deploy the project
-
-On the local machine, from the project directory, create an archive without
-repository history, local dependencies, or local environment files:
+Log out and reconnect so the `ubuntu` group change takes effect, then verify:
 
 ```bash
-tar -czf /tmp/devtracker.tar.gz \
-  --exclude=.git --exclude=node_modules --exclude=.venv \
-  --exclude='*/.env' --exclude='*/.env.*' \
-  -C .. DevTracker-mega-project
-scp -i ~/Downloads/Kanha.pem /tmp/devtracker.tar.gz \
-  ubuntu@ec2-23-22-133-34.compute-1.amazonaws.com:/tmp/
+docker --version
+docker compose version
+stat -c '%g' /var/run/docker.sock
 ```
 
-On EC2:
+## 3. Get the project and create server secrets
+
+The Jenkins configuration currently follows the `newkanha` branch. Clone it
+into the directory used by Compose and by the Jenkins deployment pipeline:
 
 ```bash
 sudo mkdir -p /srv/devtracker
-sudo tar -xzf /tmp/devtracker.tar.gz \
-  --strip-components=1 -C /srv/devtracker
-sudo chown -R ubuntu:ubuntu /srv/devtracker
+sudo chown ubuntu:ubuntu /srv/devtracker
+git clone --branch newkanha --single-branch \
+  https://github.com/Kanhaiya-Tiwari/DevTracker-mega-project.git \
+  /srv/devtracker
 cd /srv/devtracker
 cp .env.example .env
 chmod 600 .env
 ```
 
-Set strong generated passwords and signing keys in `/srv/devtracker/.env`.
-`DOCKER_GID` must match the Docker socket's group ID:
+Create separate strong values for each password/secret:
 
 ```bash
-getent group docker
-stat -c '%g' /var/run/docker.sock
+openssl rand -hex 32
 ```
 
-Set `DOCKER_GID` to the number printed by `stat`. Then start the stack:
+Run that command for `POSTGRES_PASSWORD`, `JWT_SECRET`,
+`GRAFANA_ADMIN_PASSWORD`, and `JENKINS_ADMIN_PASSWORD`. Edit `.env` and replace
+the example values; set `DOCKER_GID` to the number printed by `stat -c '%g'
+/var/run/docker.sock`:
+
+```bash
+nano .env
+```
+
+Leave `OPENROUTER_API_KEY` blank if AI coaching is not needed. Keep `.env`
+private and never commit or replace it with `.env.example` after deployment.
+
+## 4. Start the entire stack
+
+From `/srv/devtracker`:
 
 ```bash
 docker compose up -d --build
 docker compose ps
-docker compose logs -f
+docker compose logs --tail=100 backend postgres frontend
 ```
 
-Use the deployment's existing `.env` when updating the project. Do not replace
-it with `.env.example`; doing so would change credentials and lose access to
-existing services/data.
+On first startup, PostgreSQL creates the configured database and database
+account. The backend creates its application tables when it connects to the
+database. Compose named volumes retain database and service data across normal
+restarts.
 
-For Docker Hub publishing, add a Jenkins username/password credential with ID
-`docker-hub-credentials`. Use your Docker Hub username and an access token as
-the password; do not use or commit your account password.
+Open the website at `http://EC2_PUBLIC_DNS/`. Replace the host with the EC2
+public DNS or public IP. Register the first application account through the
+website; there is no default application user. The password is stored as a
+hash.
 
-Configure the Jenkins shared library at **Manage Jenkins → System → Global
-Pipeline Libraries**:
+## 5. Service URLs and login accounts
 
-1. Add a library named `Shared` with default version `master`.
-2. Select **Modern SCM → Git** and set the repository URL to
-   `https://github.com/Kanhaiya-Tiwari/jenkins-shared-libraries.git`.
-3. Leave credentials empty if the repository is public. If it is private,
-   select a Jenkins credential with read access to that repository.
-4. Save the Jenkins system configuration.
+| Service | URL | Login |
+|---|---|---|
+| DevTracker | `http://EC2_PUBLIC_DNS/` | Register an application account in the website |
+| Grafana | `http://EC2_PUBLIC_DNS:3000` | `GRAFANA_ADMIN_USER` / `GRAFANA_ADMIN_PASSWORD` in `.env` |
+| Jenkins | `http://EC2_PUBLIC_DNS:8080` | `JENKINS_ADMIN_ID` / `JENKINS_ADMIN_PASSWORD` in `.env` |
+| Prometheus | `http://EC2_PUBLIC_DNS:9090` | No login; restrict access in the security group |
+| Loki | Internal Compose service | Query through Grafana's provisioned Loki data source |
+| PostgreSQL | Internal Compose service | `POSTGRES_USER` / `POSTGRES_PASSWORD` in `.env` |
 
-The DevTracker `Jenkinsfile` uses the library's `docker_build` and
-`docker_push` steps. Keep these files in the library repository's `vars/`
-directory. The library's current `run_tests.groovy` is only a placeholder;
-the pipeline runs DevTracker backend tests itself.
-
-## 4. Access services
-
-The website is public at
-`http://ec2-23-22-133-34.compute-1.amazonaws.com/`. After allowing the three
-admin ports from your IP in the AWS security group, open Grafana at
-`http://23.22.133.34:3000`, Prometheus at `http://23.22.133.34:9090`, and
-Jenkins at `http://23.22.133.34:8080`. Use the credentials configured in the
-server's `.env`. Do not make the ports public to all IPs. The Jenkins
-`devtracker-deploy` job checks out the repository configured in Jenkins, runs
-Trivy scans and backend tests, builds and pushes backend/frontend Docker Hub
-images, deploys them, and checks the public health endpoint. It preserves
-`.env`, uploaded files, Compose volumes, and application data.
-
-For build emails, configure the SMTP server in Jenkins **Manage Jenkins →
-System → Extended E-mail Notification**, then set
-`SMTP_NOTIFICATIONS_ENABLED=true` in `/srv/devtracker/.env` and recreate the
-Jenkins container. Build results are sent to `knhapndt@gmail.com`.
-
-Read the dashboard credentials from the server with:
+The PostgreSQL database user is not the same as a DevTracker website account.
+To inspect application tables and users on EC2:
 
 ```bash
-grep -E '^(GRAFANA_ADMIN_USER|GRAFANA_ADMIN_PASSWORD|JENKINS_ADMIN_ID|JENKINS_ADMIN_PASSWORD)=' \
-  /srv/devtracker/.env
+cd /srv/devtracker
+docker compose exec postgres sh -lc \
+  'psql -U "$POSTGRES_USER" -d "$POSTGRES_DB"'
 ```
 
-## 5. Updating and troubleshooting
+At the `psql` prompt, list tables and registered users:
+
+```sql
+\dt
+SELECT email, name, created_at FROM users;
+```
+
+Never select or share `hashed_pw`. Exit `psql` with `\q`.
+
+## 6. Configure Jenkins credentials and the shared library
+
+Sign in to Jenkins and add the Docker Hub access token:
+
+1. Open **Manage Jenkins → Credentials → System → Global credentials**.
+2. Add **Username with password**. Username is your Docker Hub username;
+   password is a Docker Hub access token, not your account password.
+3. Set the credential ID exactly to `docker-hub-credentials`.
+
+Configure the pipeline's shared library:
+
+1. Open **Manage Jenkins → System → Global Pipeline Libraries**.
+2. Add a library named `Shared`, default version `master`.
+3. Select **Modern SCM → Git** and set the repository URL to
+   `https://github.com/Kanhaiya-Tiwari/jenkins-shared-libraries.git`.
+4. Leave credentials empty if the repository is public; otherwise choose a
+   read-access credential, then save.
+
+The library must provide `vars/docker_build.groovy` and
+`vars/docker_push.groovy`.
+
+## 7. Make Jenkins build automatically on push
+
+The pipeline uses SCM polling every two minutes; a GitHub webhook is not
+required. The Jenkins job must watch the same branch you push to:
+
+1. Open the `devtracker-deploy` job (or the existing DevTracker pipeline job)
+   and select **Configure**.
+2. Under **Pipeline → Definition**, choose **Pipeline script from SCM**.
+3. Choose **Git**, set repository URL to
+   `https://github.com/Kanhaiya-Tiwari/DevTracker-mega-project.git`, and set
+   branch specifier to `*/newkanha`.
+4. Set script path to `Jenkinsfile`.
+5. Under **Build Triggers**, enable **Poll SCM** and enter
+   `H/2 * * * *`, then save.
+6. Run **Build Now** once after saving. Later pushes to `newkanha` should be
+   picked up on the next poll (within about two minutes).
+
+Do not keep multiple active jobs deploying the same Compose project. If there
+is both a `devtrackernew` job and a `devtracker-deploy` job, configure one and
+disable the other to prevent duplicate deployments.
+
+For a push that does not start a build, check the job's configured branch and
+SCM polling log at **Job → Configure → Build Triggers → Poll SCM**. In the
+build console, confirm Jenkins checked out the commit you just pushed.
+
+## 8. Normal operations
 
 ```bash
 cd /srv/devtracker
 docker compose ps
+docker compose logs -f
 docker compose logs -f backend
-docker compose up -d --build backend frontend
+docker compose up -d
+docker compose down
 ```
 
-Compose named volumes keep PostgreSQL, Redis, monitoring history, and Jenkins
-data when containers are recreated. Back up important data before migrations.
-`docker compose down -v` permanently deletes those volumes.
+`docker compose down` stops and removes containers but preserves named volumes.
+Do not run `docker compose down -v` unless you intend to delete PostgreSQL,
+Redis, Grafana, Prometheus, Loki, and Jenkins data.

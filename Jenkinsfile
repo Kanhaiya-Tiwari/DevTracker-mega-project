@@ -9,6 +9,10 @@ pipeline {
         timeout(time: 45, unit: 'MINUTES')
     }
 
+    triggers {
+        pollSCM('H/2 * * * *')
+    }
+
     environment {
         COMPOSE_PROJECT_NAME = 'devtracker'
         COMPOSE_FILE = '/srv/devtracker/compose.yaml'

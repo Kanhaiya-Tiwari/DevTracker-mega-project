@@ -2,6 +2,9 @@
 
 DevTrackr is a React and FastAPI application for tracking learning goals, practice sessions, and progress.
 
+For a complete fresh-EC2 deployment, credentials, login, and Jenkins auto-build
+guide, see [setup.md](setup.md).
+
 ## Stack
 
 - React 18, Vite, Tailwind CSS
