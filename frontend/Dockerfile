@@ -16,7 +16,10 @@ COPY --exclude=.env . .
 RUN npm run build
 
 # Production stage
-FROM nginxinc/nginx-unprivileged:1.27-alpine AS production
+FROM nginxinc/nginx-unprivileged:1.29-alpine AS production
+
+USER root
+RUN apk upgrade --no-cache
 
 # Copy built application
 COPY --from=builder /app/dist /usr/share/nginx/html

@@ -56,6 +56,12 @@ pipeline {
         stage('Build and scan images') {
             steps {
                 script {
+                    sh '''
+                        set -eu
+                        docker pull python:3.12-alpine
+                        docker pull node:20-alpine
+                        docker pull nginxinc/nginx-unprivileged:1.29-alpine
+                    '''
                     env.DOCKER_IMAGE_TAG = sh(
                         script: 'git rev-parse --short=12 HEAD',
                         returnStdout: true
