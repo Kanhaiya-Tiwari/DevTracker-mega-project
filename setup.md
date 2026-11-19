@@ -19,6 +19,15 @@ Use an Ubuntu Server LTS AMI and a security group with these inbound rules:
 Do not expose database port 5432, Redis port 6379, or Loki port 3100. Restrict
 SSH and the monitoring/admin ports to your IP.
 
+For automatic GitHub webhook builds, GitHub must also be able to reach
+`/github-webhook/` on Jenkins port 8080. The simple `:8080` setup below uses
+HTTP and serves both Jenkins UI and the webhook on that port. Do not open the
+Jenkins UI to the whole internet just to make webhooks work; use an HTTPS
+reverse proxy with path/source restrictions, or maintain an inbound rule for
+GitHub's current webhook IP ranges from `https://api.github.com/meta` (`hooks`
+field). The webhook is not reachable while port 8080 is restricted only to
+your own IP.
+
 From your computer, connect with the instance's key and public DNS name:
 
 ```bash
@@ -154,21 +163,27 @@ The library must provide `vars/docker_build.groovy` and
 
 ## 7. Make Jenkins build automatically on push
 
-The Jenkins configuration and build logs must refer to the same job. The
-current Job DSL config creates `devtrackernew` and polls `master` every two
-minutes. If you have already deployed Jenkins before this change, update its
-configuration on EC2 and recreate Jenkins once to apply it:
+The Jenkins configuration creates `devtrackernew`, checks out `master`, and
+uses the GitHub push trigger (not periodic polling). The GitHub plugin must be
+installed. If you have already deployed Jenkins before this change, update
+the plugin list and Jenkins configuration on EC2, then rebuild/recreate the
+Jenkins container:
 
 ```bash
 cd /srv/devtracker
 git fetch origin master
 git show FETCH_HEAD:infra/jenkins/jenkins.yaml | \
   sudo tee infra/jenkins/jenkins.yaml >/dev/null
+git show FETCH_HEAD:infra/jenkins/plugins.txt | \
+  sudo tee infra/jenkins/plugins.txt >/dev/null
 docker compose up -d --build --force-recreate jenkins
 ```
 
 This recreates only the Jenkins container; its named `jenkins_data` volume
-preserves job history and Jenkins configuration. Do not remove volumes.
+preserves job history and Jenkins configuration. Do not remove volumes. After
+restarting, check **Manage Jenkins → Plugins → Installed** and confirm the
+GitHub plugin is installed; install it from **Available plugins** and restart
+Jenkins if it is missing.
 
 Then open Jenkins and confirm the `devtrackernew` job is configured as follows:
 
@@ -178,22 +193,29 @@ Then open Jenkins and confirm the `devtrackernew` job is configured as follows:
    `https://github.com/Kanhaiya-Tiwari/DevTracker-mega-project.git`, and set
    branch specifier to `*/master`.
 4. Set script path to `Jenkinsfile`.
-5. Under **Build Triggers**, enable **Poll SCM** and enter `H/2 * * * *`.
-   Save the job configuration.
-6. Open **Configure → Build Triggers → Poll SCM → (?)** or the job's polling
-   log and confirm a polling schedule is active. Run **Build Now** once after
-   saving; after that, pushes to `master` should be detected within about
-   two minutes.
+5. Under **Build Triggers**, enable **GitHub hook trigger for GITScm polling**
+   and save. Do not enable **Poll SCM**.
+6. In the GitHub repository, open **Settings → Webhooks → Add webhook**:
+   - Payload URL:
+     `http://EC2_PUBLIC_DNS:8080/github-webhook/`
+   - Content type: `application/json`
+   - Choose **Just the push event**
+   - Save the webhook.
+7. Run **Build Now** once. This confirms Jenkins can build and registers the
+   pipeline configuration. Afterward, pushing a commit to `master` should
+   start a build from GitHub's webhook.
 
-The Jenkinsfile also declares the same SCM polling schedule. Do not keep
-another active DevTracker deployment job (for example `devtracker-deploy`)
-polling the same branch, because it may run duplicate deployments.
+Replace `EC2_PUBLIC_DNS` with the instance's actual public DNS name. In
+GitHub **Settings → Webhooks → Recent Deliveries**, select a push delivery:
+expect a successful HTTP response from Jenkins. A failed delivery usually
+means the URL, EC2 security-group/network access, or Jenkins plugin is wrong.
+If GitHub gets a successful response but there is no build, check that the
+job's GitHub trigger is enabled and its SCM URL and branch are exactly the
+repository and `*/master`.
 
-For a push that does not start a build, open **devtrackernew → Git Polling
-Log**. Confirm Jenkins is polling the `master` branch and that the next poll
-detects a changed revision. If it reports no changes, verify the push appears
-on GitHub's `master` branch and that the Jenkins job repository URL and
-branch specifier match exactly.
+Only one active job should deploy this Compose project. Disable any other
+DevTracker deployment job (for example `devtracker-deploy`) to avoid duplicate
+deployments.
 
 ## 8. Normal operations
 
