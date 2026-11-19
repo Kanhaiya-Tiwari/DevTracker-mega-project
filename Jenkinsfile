@@ -44,11 +44,11 @@ pipeline {
             steps {
                 sh '''
                     set -eu
-                    docker run --rm \
-                      --volume "$WORKSPACE/backend:/workspace" \
-                      --workdir /workspace \
-                      python:3.12-slim \
-                      sh -ec 'pip install --quiet -r requirements.txt && pytest tests/ -q'
+                    tar -C "$WORKSPACE/backend" -cf - requirements.txt app tests | \
+                      docker run --rm -i \
+                        --workdir /workspace \
+                        python:3.12-slim \
+                        sh -ec 'tar -xf - -C /workspace && pip install --quiet -r requirements.txt && pytest tests/ -q'
                 '''
             }
         }
