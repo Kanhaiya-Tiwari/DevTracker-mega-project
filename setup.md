@@ -1,83 +1,119 @@
-# 🚀 DevTracker Infrastructure & Setup Guide
+# EC2 setup and operations
 
-This document explains the current infrastructure deployed on your EC2 instance (`100.48.45.91`) and how to manage the monitoring and deployment tools.
+This project runs as a single Docker Compose stack. Kubernetes, Terraform, and
+Ansible are not part of this deployment.
 
-## 1. 🏗️ Current Stack Overview
-The following components are installed and running:
-*   **K3s Kubernetes**: The core orchestrator.
-*   **NGINX Ingress Controller**: Handles traffic on Port 80.
-*   **ArgoCD**: GitOps continuous delivery (Namespace: `argocd`).
-*   **Prometheus**: Metrics collection (Namespace: `monitoring`).
-*   **Grafana**: Data visualization dashboards (Namespace: `monitoring`).
-*   **PostgreSQL & Redis**: Application database and cache.
+## 1. Connect to EC2
 
----
+From the local machine, with the key saved as `~/Downloads/Kanha.pem`:
 
-## 2. 🔌 Required Ports (AWS Security Group)
-Ensure your AWS EC2 Security Group has these rules:
-
-| Port Range | Protocol | Purpose |
-| :--- | :--- | :--- |
-| `80` | TCP | Public Web Traffic (Frontend) |
-| `443` | TCP | Secure Web Traffic (HTTPS) |
-| `22` | TCP | SSH Access |
-| `30000-32767` | TCP | Kubernetes NodePorts (For direct service access) |
-
----
-
-## 3. 🚢 Managing the Application
-Your app is deployed in the `devtracker` namespace.
-
-*   **Check Status**: `kubectl get all -n devtracker`
-*   **Frontend URL**: [http://100.48.45.91](http://100.48.45.91)
-*   **Backend Health**: [http://100.48.45.91/health](http://100.48.45.91/health)
-
----
-
-## 4. 🐙 ArgoCD Setup (Continuous Delivery)
-ArgoCD allows you to visualize your Kubernetes cluster and sync code changes automatically.
-
-### Step 1: Get Admin Password
-Run this command on your EC2:
 ```bash
-KUBECONFIG=/etc/rancher/k3s/k3s.yaml kubectl -n argocd get secret argocd-initial-admin-secret -o jsonpath="{.data.password}" | base64 -d; echo
+chmod 600 ~/Downloads/Kanha.pem
+ssh -i ~/Downloads/Kanha.pem ubuntu@ec2-23-22-133-34.compute-1.amazonaws.com
 ```
 
-### Step 2: Access ArgoCD UI
-Use port-forwarding to access it safely from your local laptop:
+Allow inbound TCP port 22 from your IP and port 80 for the public website in the
+instance's AWS security group. For direct access to Grafana, Jenkins, and
+Prometheus, allow TCP ports 3000, 8080, and 9090 only from your public IP
+(for example, `157.49.44.6/32`). Do not allow these ports from `0.0.0.0/0`;
+Prometheus has no login configured. Do not expose ports 3100, 5432, or 6379.
+
+## 2. Install Docker Compose
+
+On a new Ubuntu server:
+
 ```bash
-# Run this on your LOCAL terminal:
-ssh -i "Devtracker.pem" -L 8443:svc/argocd-server:443 ubuntu@100.48.45.91
+sudo apt-get update
+sudo apt-get install -y ca-certificates curl
+curl -fsSL https://get.docker.com | sudo sh
+sudo systemctl enable --now docker
+sudo docker compose version
 ```
-Now open: [https://localhost:8443](https://localhost:8443) (User: `admin`)
 
----
+## 3. Deploy the project
 
-## 5. 📊 Prometheus & Grafana Setup (Monitoring)
-### Step 1: Access Grafana Dashboard
-Grafana is the primary UI for seeing your server health, CPU/RAM usage, and app metrics.
+On the local machine, from the project directory, create an archive without
+repository history, local dependencies, or local environment files:
 
-1.  **Get Credentials**:
-    *   **User**: `admin`
-    *   **Password**: `admin123` (Set in playbook)
-
-2.  **Access UI**:
 ```bash
-# Run this on your LOCAL terminal:
-ssh -i "Devtracker.pem" -L 3000:svc/monitoring-grafana:80 -n monitoring ubuntu@100.48.45.91
+tar -czf /tmp/devtracker.tar.gz \
+  --exclude=.git --exclude=node_modules --exclude=.venv \
+  --exclude='*/.env' --exclude='*/.env.*' \
+  -C .. DevTracker-mega-project
+scp -i ~/Downloads/Kanha.pem /tmp/devtracker.tar.gz \
+  ubuntu@ec2-23-22-133-34.compute-1.amazonaws.com:/tmp/
 ```
-Now open: [http://localhost:3000](http://localhost:3000)
 
-### Step 2: Adding Dashboards
-1.  Login to Grafana.
-2.  Go to **Dashboards** -> **Import**.
-3.  Type `315` (Kubernetes Cluster Overview) or `1860` (Node Exporter Full).
-4.  Select `Prometheus` as the data source.
+On EC2:
 
----
+```bash
+sudo mkdir -p /srv/devtracker
+sudo tar -xzf /tmp/devtracker.tar.gz \
+  --strip-components=1 -C /srv/devtracker
+sudo chown -R ubuntu:ubuntu /srv/devtracker
+cd /srv/devtracker
+cp .env.example .env
+chmod 600 .env
+```
 
-## 6. 🛠️ Troubleshooting Commands
-If something is wrong, check the bootstrap logs:
-*   **Ansible/Startup Logs**: `sudo tail -f /var/log/devtracker-bootstrap.log`
-*   **K3s Logs**: `sudo journalctl -u k3s -f`
-*   **Pod Logs**: `kubectl logs -l component=backend -n devtracker`
+Set strong generated passwords and signing keys in `/srv/devtracker/.env`.
+`DOCKER_GID` must match the Docker socket's group ID:
+
+```bash
+getent group docker
+stat -c '%g' /var/run/docker.sock
+```
+
+Set `DOCKER_GID` to the number printed by `stat`. Then start the stack:
+
+```bash
+docker compose up -d --build
+docker compose ps
+docker compose logs -f
+```
+
+Use the deployment's existing `.env` when updating the project. Do not replace
+it with `.env.example`; doing so would change credentials and lose access to
+existing services/data.
+
+For Docker Hub publishing, add a Jenkins username/password credential with ID
+`dockerhub-creds`. Use your Docker Hub username and an access token as the
+password; do not use or commit your account password.
+
+## 4. Access services
+
+The website is public at
+`http://ec2-23-22-133-34.compute-1.amazonaws.com/`. After allowing the three
+admin ports from your IP in the AWS security group, open Grafana at
+`http://23.22.133.34:3000`, Prometheus at `http://23.22.133.34:9090`, and
+Jenkins at `http://23.22.133.34:8080`. Use the credentials configured in the
+server's `.env`. Do not make the ports public to all IPs. The Jenkins
+`devtracker-deploy` job polls GitHub every two minutes, clones into a clean
+workspace, runs backend tests, builds and pushes Docker Hub images, deploys
+them, and checks the public health endpoint. It does not remove Compose
+volumes or application data.
+
+For build emails, configure the SMTP server in Jenkins **Manage Jenkins →
+System → Extended E-mail Notification**, then set
+`SMTP_NOTIFICATIONS_ENABLED=true` in `/srv/devtracker/.env` and recreate the
+Jenkins container. Build results are sent to `knhapndt@gmail.com`.
+
+Read the dashboard credentials from the server with:
+
+```bash
+grep -E '^(GRAFANA_ADMIN_USER|GRAFANA_ADMIN_PASSWORD|JENKINS_ADMIN_ID|JENKINS_ADMIN_PASSWORD)=' \
+  /srv/devtracker/.env
+```
+
+## 5. Updating and troubleshooting
+
+```bash
+cd /srv/devtracker
+docker compose ps
+docker compose logs -f backend
+docker compose up -d --build backend frontend
+```
+
+Compose named volumes keep PostgreSQL, Redis, monitoring history, and Jenkins
+data when containers are recreated. Back up important data before migrations.
+`docker compose down -v` permanently deletes those volumes.

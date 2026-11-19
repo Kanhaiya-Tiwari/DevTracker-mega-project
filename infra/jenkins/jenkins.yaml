@@ -1,0 +1,35 @@
+jenkins:
+  systemMessage: "DevTracker Docker Compose deployment"
+  numExecutors: 1
+  securityRealm:
+    local:
+      allowsSignup: false
+      users:
+        - id: "${JENKINS_ADMIN_ID}"
+          password: "${JENKINS_ADMIN_PASSWORD}"
+  authorizationStrategy:
+    loggedInUsersCanDoAnything:
+      allowAnonymousRead: false
+
+jobs:
+  - script: |
+      pipelineJob('devtracker-deploy') {
+        description('Polls GitHub, tests DevTracker, pushes Docker Hub images, and deploys them.')
+        triggers {
+          scm('H/2 * * * *')
+        }
+        definition {
+          cpsScm {
+            scm {
+              git {
+                remote {
+                  url('https://github.com/Kanhaiya-Tiwari/DevTracker-mega-project.git')
+                }
+                branch('*/master')
+              }
+            }
+            scriptPath('Jenkinsfile')
+            lightweight()
+          }
+        }
+      }
