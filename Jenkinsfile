@@ -167,7 +167,7 @@ pipeline {
                     for attempt in $(seq 1 30); do
                       if curl --fail --silent --show-error --max-time 5 \
                         --output /dev/null --write-out 'HTTP %{http_code}\\n' \
-                        http://127.0.0.1/health; then
+                        http://frontend:8080/health; then
                         echo
                         exit 0
                       fi
