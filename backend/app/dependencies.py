@@ -2,7 +2,7 @@ from typing import AsyncGenerator, Optional
 
 from fastapi import Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer
-from jose import JWTError, jwt
+from jwt import InvalidTokenError, decode
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import Settings
@@ -26,11 +26,11 @@ async def get_current_user(token: str = Depends(oauth2_scheme), db: AsyncSession
         headers={"WWW-Authenticate": "Bearer"},
     )
     try:
-        payload = jwt.decode(token, settings.jwt_secret, algorithms=[settings.jwt_algorithm])
+        payload = decode(token, settings.jwt_secret, algorithms=[settings.jwt_algorithm])
         email: Optional[str] = payload.get("sub")
         if email is None:
             raise credentials_exception
-    except JWTError:
+    except InvalidTokenError:
         raise credentials_exception
 
     user = await get_user_by_email(db, email)

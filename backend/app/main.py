@@ -14,10 +14,6 @@ logger = logging.getLogger(__name__)
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # Initialize Prometheus instrumentator
-    instrumentator = Instrumentator()
-    instrumentator.instrument(app).expose(app, endpoint="/metrics", include_in_schema=False)
-
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
         # Backward-compatible schema patch for existing DBs without Alembic migrations.
@@ -39,6 +35,8 @@ app = FastAPI(
     version="1.0.0",
     lifespan=lifespan,
 )
+
+Instrumentator().instrument(app).expose(app, endpoint="/metrics", include_in_schema=False)
 
 app.add_middleware(
     CORSMiddleware,

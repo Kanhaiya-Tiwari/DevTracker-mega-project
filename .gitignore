@@ -90,25 +90,6 @@ api_keys*
 *.tar
 backend-image*
 
-# Terraform - State files (CRITICAL - Contains sensitive data)
-*.tfstate
-*.tfstate.*
-.terraform/
-.terraform.lock.hcl
-.terraform.tfstate
-.terraform.tfstate.backup
-override.tf
-override.tf.json
-
-# Kubernetes - Secrets (CRITICAL - Contains credentials)
-secrets.yml
-secret*.yml
-*secret*.yaml
-
-# Ansible - Vault and sensitive files
-*.vault
-ansible/vault*
-
 # AWS - Credentials
 .aws/
 *.pem

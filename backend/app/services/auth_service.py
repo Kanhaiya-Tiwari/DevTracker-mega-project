@@ -2,7 +2,7 @@ from datetime import datetime, timedelta
 from typing import Optional
 
 from passlib.context import CryptContext
-from jose import JWTError, jwt
+from jwt import InvalidTokenError, decode, encode
 
 from app.config import Settings
 
@@ -23,11 +23,11 @@ def create_access_token(data: dict, expires_delta: Optional[timedelta] = None) -
     to_encode = data.copy()
     expire = datetime.utcnow() + (expires_delta or timedelta(minutes=settings.access_token_expire_minutes))
     to_encode.update({"exp": expire})
-    return jwt.encode(to_encode, settings.jwt_secret, algorithm=settings.jwt_algorithm)
+    return encode(to_encode, settings.jwt_secret, algorithm=settings.jwt_algorithm)
 
 
 def decode_access_token(token: str) -> dict:
     try:
-        return jwt.decode(token, settings.jwt_secret, algorithms=[settings.jwt_algorithm])
-    except JWTError as e:
+        return decode(token, settings.jwt_secret, algorithms=[settings.jwt_algorithm])
+    except InvalidTokenError as e:
         raise e
