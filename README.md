@@ -73,7 +73,7 @@ backend and frontend images, and pushes
 `kanhaiyatiwari/devtracker-frontend` with commit and `latest` tags. It then
 refreshes deployment files without replacing `.env` or uploads, deploys both
 images, and checks `/health`. Configure GitHub credentials in Jenkins as
-`Github-cred` and Docker Hub username/access token as
+`Github-cred` and the Docker Hub username/access token as
 `docker-hub-credentials`. Configure SMTP
 in Jenkins **Manage Jenkins → System → Extended E-mail Notification** and set
 `SMTP_NOTIFICATIONS_ENABLED=true` in `/srv/devtracker/.env` to receive
