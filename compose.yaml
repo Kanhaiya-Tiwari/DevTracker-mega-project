@@ -24,6 +24,18 @@ services:
       start_period: 20s
     logging: *default-logging
 
+  postgres-exporter:
+    image: prometheuscommunity/postgres-exporter:v0.21.1
+    restart: unless-stopped
+    environment:
+      DATA_SOURCE_URI: postgres:5432/${POSTGRES_DB:-devtrackr}?sslmode=disable
+      DATA_SOURCE_USER: ${POSTGRES_USER:-devtrackr}
+      DATA_SOURCE_PASS: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    logging: *default-logging
+
   redis:
     image: redis:7-alpine
     restart: unless-stopped
@@ -35,6 +47,16 @@ services:
       interval: 10s
       timeout: 3s
       retries: 10
+    logging: *default-logging
+
+  redis-exporter:
+    image: oliver006/redis_exporter:v1.97.0
+    restart: unless-stopped
+    environment:
+      REDIS_ADDR: redis://redis:6379
+    depends_on:
+      redis:
+        condition: service_healthy
     logging: *default-logging
 
   backend:
@@ -102,8 +124,23 @@ services:
       - ./infra/monitoring/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
       - prometheus_data:/prometheus
     depends_on:
+      postgres-exporter:
+        condition: service_started
+      redis-exporter:
+        condition: service_started
+      blackbox-exporter:
+        condition: service_started
       backend:
         condition: service_started
+    logging: *default-logging
+
+  blackbox-exporter:
+    image: prom/blackbox-exporter:v0.29.1
+    restart: unless-stopped
+    command:
+      - --config.file=/etc/blackbox_exporter/config.yml
+    volumes:
+      - ./infra/monitoring/prometheus/blackbox.yml:/etc/blackbox_exporter/config.yml:ro
     logging: *default-logging
 
   node-exporter:
@@ -144,18 +181,39 @@ services:
       - loki_data:/loki
     logging: *default-logging
 
-  promtail:
-    image: grafana/promtail:3.5.0
+  alloy:
+    image: grafana/alloy:v1.22.0
     restart: unless-stopped
-    user: "0:0"
-    command: ["-config.file=/etc/promtail/config.yml"]
+    command:
+      - run
+      - --server.http.listen-addr=0.0.0.0:12345
+      - --storage.path=/var/lib/alloy/data
+      - /etc/alloy/config.alloy
     volumes:
-      - ./infra/monitoring/promtail/config.yml:/etc/promtail/config.yml:ro
-      - /var/lib/docker/containers:/var/lib/docker/containers:ro
-      - promtail_positions:/var/lib/promtail
+      - ./infra/monitoring/alloy/config.alloy:/etc/alloy/config.alloy:ro
+      - alloy_data:/var/lib/alloy/data
     depends_on:
       loki:
         condition: service_started
+      docker-socket-proxy:
+        condition: service_started
+    networks:
+      - default
+      - docker-api
+    logging: *default-logging
+
+  docker-socket-proxy:
+    image: tecnativa/docker-socket-proxy:3.4
+    restart: unless-stopped
+    environment:
+      CONTAINERS: "1"
+      PING: "1"
+      VERSION: "1"
+      POST: "0"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    networks:
+      - docker-api
     logging: *default-logging
 
   grafana:
@@ -204,6 +262,10 @@ volumes:
   redis_data:
   prometheus_data:
   loki_data:
-  promtail_positions:
+  alloy_data:
   grafana_data:
   jenkins_data:
+
+networks:
+  docker-api:
+    internal: true

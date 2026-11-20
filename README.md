@@ -10,7 +10,7 @@ guide, see [setup.md](setup.md).
 - React 18, Vite, Tailwind CSS
 - FastAPI, SQLAlchemy, PostgreSQL, Redis
 - Docker Compose for the app, database, cache, monitoring, and CI/CD
-- Prometheus, Grafana, Loki, Promtail, Node Exporter, and cAdvisor
+- Prometheus, Grafana, Loki, Grafana Alloy, Node Exporter, and cAdvisor
 - Jenkins pipeline for tests, image builds, and deployment
 
 ## Run locally
@@ -51,18 +51,28 @@ login configured.
 | Jenkins | [http://3.85.2.220:8080](http://3.85.2.220:8080) | `JENKINS_ADMIN_ID` / `JENKINS_ADMIN_PASSWORD` from `.env` |
 | Loki | Internal Compose service | Use the provisioned Loki data source in Grafana |
 
-Read the dashboard credentials from the server with:
+Keep Grafana and Jenkins passwords private in `/srv/devtracker/.env`. Do not
+print password values into terminal transcripts, build logs, or Grafana.
+To check only the configured admin usernames:
 
 ```bash
 ssh -i ~/Downloads/Kanha.pem ubuntu@ec2-3-85-2-220.compute-1.amazonaws.com \
-  "grep -E '^(GRAFANA_ADMIN_USER|GRAFANA_ADMIN_PASSWORD|JENKINS_ADMIN_ID|JENKINS_ADMIN_PASSWORD)=' /srv/devtracker/.env"
+  "grep -E '^(GRAFANA_ADMIN_USER|JENKINS_ADMIN_ID)=' /srv/devtracker/.env"
 ```
 
-Grafana provisions Prometheus and Loki data sources and a DevTracker dashboard
-with backend request rate, EC2 CPU/memory/root-disk utilization, scrape-target
-health, and Docker logs filterable by `service_name`. Prometheus scrapes the
-backend, EC2 host, and cAdvisor; Promtail forwards Docker container logs to
-Loki.
+Grafana provisions Prometheus and Loki data sources and the **DevTracker -
+Simple Server Health** dashboard. It shows website/API, PostgreSQL, Redis,
+Jenkins, host CPU/memory/disk, container usage, API traffic, alerts, and logs.
+PostgreSQL/Redis exporters and blackbox probes feed Prometheus; Grafana Alloy
+labels Docker logs by Compose service and stores them in Loki for seven days.
+Login audit events show email and success/failure only. Passwords are never
+logged.
+
+Grafana's **Alerting → Alert rules** page shows service, database, Redis,
+host-resource, and HTTP/TCP health alerts. Service-health rules evaluate every
+10 seconds. Alerts are configured for Grafana UI only; no email, phone, or
+webhook is configured. Because Grafana runs on EC2, it cannot notify you if
+EC2 or Grafana itself is offline.
 
 Jenkins checks out the DevTracker repository configured in the Jenkins job
 and starts on a GitHub push to `master` when the repository webhook is
@@ -77,7 +87,8 @@ images, and checks `/health`. Configure GitHub credentials in Jenkins as
 `docker-hub-credentials`. Configure SMTP
 in Jenkins **Manage Jenkins → System → Extended E-mail Notification** and set
 `SMTP_NOTIFICATIONS_ENABLED=true` in `/srv/devtracker/.env` to receive
-success/failure email at `knhapndt@gmail.com`.
+Jenkins build success/failure email at `knhapndt@gmail.com`; these are separate
+from Grafana alerts, which remain visible in Grafana only.
 
 The pipeline uses the `docker_build` and `docker_push` steps from the
 `Shared` Jenkins Global Pipeline Library. Configure it under **Manage Jenkins
@@ -114,7 +125,7 @@ monitoring, and Jenkins data as well, run `docker compose down -v`.
 ```text
 backend/                         FastAPI app and tests
 frontend/                        React app and production NGINX config
-infra/monitoring/                Prometheus, Loki, Promtail, Grafana config
+infra/monitoring/                Prometheus, Loki, Alloy, Grafana config
 infra/jenkins/                   Jenkins image and secured configuration
 compose.yaml                     Full local and EC2 Compose stack
 Jenkinsfile                      CI/CD pipeline

@@ -143,6 +143,13 @@ SELECT email, name, created_at FROM users;
 
 Never select or share `hashed_pw`. Exit `psql` with `\q`.
 
+Grafana's **DevTracker - Simple Server Health** dashboard shows application
+and infrastructure status, API traffic, container resource use, and logs.
+Open **Alerting → Alert rules** for currently firing alerts. Login audit
+entries include email and outcome only; passwords are never logged. Alerts are
+visible in Grafana only and service-health rules evaluate every 10 seconds, so
+they cannot notify you if EC2 or Grafana itself is offline.
+
 ## 6. Configure Jenkins credentials and the shared library
 
 Add a **Username with password** credential for GitHub:

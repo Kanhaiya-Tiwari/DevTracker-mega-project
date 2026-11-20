@@ -1,3 +1,5 @@
+import json
+import logging
 from datetime import timedelta
 
 from fastapi import APIRouter, Depends, HTTPException, status
@@ -11,6 +13,15 @@ from app.services.auth_service import verify_password, get_password_hash, create
 from app.dependencies import get_db, get_current_user
 
 router = APIRouter()
+logger = logging.getLogger(__name__)
+
+
+def _log_login_event(outcome: str, email: str) -> None:
+    logger.log(
+        logging.INFO if outcome == "success" else logging.WARNING,
+        "auth_login %s",
+        json.dumps({"outcome": outcome, "email": email}, separators=(",", ":")),
+    )
 
 
 @router.post("/register", response_model=UserRead)
@@ -28,10 +39,12 @@ async def register(user_in: UserCreate, db: AsyncSession = Depends(get_db)):
 async def token(form_data: OAuth2PasswordRequestForm = Depends(), db: AsyncSession = Depends(get_db)):
     user = await get_user_by_email(db, form_data.username)
     if not user or not verify_password(form_data.password, user.hashed_pw):
+        _log_login_event("failure", form_data.username)
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid credentials")
 
     access_token_expires = timedelta(minutes=60)
     access_token = create_access_token({"sub": str(user.email)}, expires_delta=access_token_expires)
+    _log_login_event("success", user.email)
     return {"access_token": access_token, "token_type": "bearer"}
 
 

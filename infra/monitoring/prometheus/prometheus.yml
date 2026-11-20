@@ -7,10 +7,34 @@ scrape_configs:
     static_configs:
       - targets: ["prometheus:9090"]
 
+  - job_name: grafana
+    static_configs:
+      - targets: ["grafana:3000"]
+
+  - job_name: loki
+    static_configs:
+      - targets: ["loki:3100"]
+
+  - job_name: alloy
+    static_configs:
+      - targets: ["alloy:12345"]
+
+  - job_name: blackbox-exporter
+    static_configs:
+      - targets: ["blackbox-exporter:9115"]
+
   - job_name: devtracker-backend
     metrics_path: /metrics
     static_configs:
       - targets: ["backend:8000"]
+
+  - job_name: postgres-exporter
+    static_configs:
+      - targets: ["postgres-exporter:9187"]
+
+  - job_name: redis-exporter
+    static_configs:
+      - targets: ["redis-exporter:9121"]
 
   - job_name: ec2-node
     static_configs:
@@ -19,3 +43,40 @@ scrape_configs:
   - job_name: docker-containers
     static_configs:
       - targets: ["cadvisor:8080"]
+
+  - job_name: blackbox-http
+    metrics_path: /probe
+    params:
+      module: [http_2xx]
+    static_configs:
+      - targets:
+          - http://frontend:8080/health
+          - http://backend:8000/health
+          - http://grafana:3000/api/health
+          - http://prometheus:9090/-/healthy
+          - http://loki:3100/ready
+          - http://jenkins:8080/login
+          - http://alloy:12345/metrics
+    relabel_configs:
+      - source_labels: [__address__]
+        target_label: __param_target
+      - source_labels: [__param_target]
+        target_label: instance
+      - target_label: __address__
+        replacement: blackbox-exporter:9115
+
+  - job_name: blackbox-tcp
+    metrics_path: /probe
+    params:
+      module: [tcp_connect]
+    static_configs:
+      - targets:
+          - postgres:5432
+          - redis:6379
+    relabel_configs:
+      - source_labels: [__address__]
+        target_label: __param_target
+      - source_labels: [__param_target]
+        target_label: instance
+      - target_label: __address__
+        replacement: blackbox-exporter:9115

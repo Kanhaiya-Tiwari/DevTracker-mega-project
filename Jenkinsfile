@@ -18,6 +18,7 @@ pipeline {
         DOCKER_FRONTEND_IMAGE_NAME = 'kanhaiyatiwari/devtracker-frontend'
         DOCKER_HUB_CREDENTIALS = 'docker-hub-credentials'
         GITHUB_CREDENTIALS = 'Github-cred'
+        MONITORING_CONFIG_CHANGED = 'false'
     }
 
     stages {
@@ -145,6 +146,40 @@ pipeline {
 
         stage('Clean and update deployment files') {
             steps {
+                script {
+                    env.MONITORING_CONFIG_CHANGED = sh(
+                        script: '''
+                            set -eu
+                            for file in \
+                              compose.yaml \
+                              infra/monitoring/prometheus/prometheus.yml \
+                              infra/monitoring/prometheus/blackbox.yml \
+                              infra/monitoring/alloy/config.alloy \
+                              infra/monitoring/grafana/provisioning/datasources/datasources.yml \
+                              infra/monitoring/grafana/provisioning/dashboards/dashboards.yml \
+                              infra/monitoring/grafana/provisioning/alerting/rules.yml \
+                              infra/monitoring/grafana/dashboards/devtracker.json \
+                              infra/monitoring/grafana/dashboards/simple-server-health.json; do
+                              if [ ! -f "$DEPLOY_DIRECTORY/$file" ]; then
+                                echo true
+                                exit 0
+                              fi
+                              if cmp -s "$WORKSPACE/$file" "$DEPLOY_DIRECTORY/$file"; then
+                                continue
+                              else
+                                cmp_status=$?
+                                if [ "$cmp_status" -eq 1 ]; then
+                                  echo true
+                                  exit 0
+                                fi
+                                exit "$cmp_status"
+                              fi
+                            done
+                            echo false
+                        ''',
+                        returnStdout: true
+                    ).trim()
+                }
                 sh '''
                     set -eu
                     rsync -a --delete \
@@ -193,6 +228,31 @@ pipeline {
             }
         }
 
+        stage('Apply monitoring stack') {
+            steps {
+                sh '''
+                    set -eu
+                    if [ "$MONITORING_CONFIG_CHANGED" = "true" ]; then
+                      docker compose \
+                        --project-directory "$DEPLOY_DIRECTORY" \
+                        --env-file "$COMPOSE_ENV_FILE" \
+                        -f "$COMPOSE_FILE" up -d --no-deps --no-build --force-recreate \
+                        postgres-exporter redis-exporter blackbox-exporter \
+                        docker-socket-proxy node-exporter cadvisor loki \
+                        prometheus alloy grafana
+                    else
+                      docker compose \
+                        --project-directory "$DEPLOY_DIRECTORY" \
+                        --env-file "$COMPOSE_ENV_FILE" \
+                        -f "$COMPOSE_FILE" up -d --no-deps --no-build \
+                        postgres-exporter redis-exporter blackbox-exporter \
+                        docker-socket-proxy node-exporter cadvisor loki \
+                        prometheus alloy grafana
+                    fi
+                '''
+            }
+        }
+
         stage('Verify deployment') {
             steps {
                 sh '''
@@ -216,6 +276,42 @@ pipeline {
                       --env-file "$COMPOSE_ENV_FILE" \
                       -f "$COMPOSE_FILE" logs --no-color --tail=150 backend postgres frontend || true
                     echo "DevTracker health check failed after deployment" >&2
+                    exit 1
+                '''
+            }
+        }
+
+        stage('Verify monitoring') {
+            steps {
+                sh '''
+                    set -eu
+                    for attempt in $(seq 1 30); do
+                      if curl --fail --silent --max-time 5 http://prometheus:9090/-/ready >/dev/null && \
+                        curl --fail --silent --max-time 5 http://grafana:3000/api/health >/dev/null && \
+                        curl --fail --silent --max-time 5 http://loki:3100/ready >/dev/null && \
+                      curl --fail --silent --max-time 5 http://alloy:12345/metrics >/dev/null && \
+                        curl --fail --silent --max-time 5 http://node-exporter:9100/metrics >/dev/null && \
+                        curl --fail --silent --max-time 5 http://cadvisor:8080/metrics >/dev/null && \
+                        curl --fail --silent --max-time 5 http://postgres-exporter:9187/metrics >/dev/null && \
+                        curl --fail --silent --max-time 5 http://redis-exporter:9121/metrics >/dev/null && \
+                        curl --fail --silent --max-time 5 http://blackbox-exporter:9115/metrics >/dev/null; then
+                        echo "Grafana, Prometheus, Loki, Alloy, and exporters are responding"
+                        exit 0
+                      fi
+                      sleep 2
+                    done
+                    echo "Monitoring stack health check failed" >&2
+                    docker compose \
+                      --project-directory "$DEPLOY_DIRECTORY" \
+                      --env-file "$COMPOSE_ENV_FILE" \
+                      -f "$COMPOSE_FILE" ps -a >&2
+                    docker compose \
+                      --project-directory "$DEPLOY_DIRECTORY" \
+                      --env-file "$COMPOSE_ENV_FILE" \
+                      -f "$COMPOSE_FILE" logs --no-color --tail=100 \
+                      prometheus grafana loki alloy node-exporter cadvisor \
+                      postgres-exporter \
+                      redis-exporter blackbox-exporter docker-socket-proxy >&2 || true
                     exit 1
                 '''
             }
