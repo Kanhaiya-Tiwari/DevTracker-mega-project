@@ -32,7 +32,7 @@ docker compose ps
 Open the app at [http://localhost](http://localhost), the backend API docs at
 [http://localhost/docs](http://localhost/docs), and the health check at
 [http://localhost/health](http://localhost/health). The EC2 deployment is at
-[http://ec2-23-22-133-34.compute-1.amazonaws.com](http://ec2-23-22-133-34.compute-1.amazonaws.com).
+[http://ec2-3-85-2-220.compute-1.amazonaws.com](http://ec2-3-85-2-220.compute-1.amazonaws.com).
 
 The optional AI coaching integration needs an `OPENROUTER_API_KEY`. Leave it
 blank to run the rest of the application without that integration.
@@ -46,15 +46,15 @@ login configured.
 
 | Service | URL | Credentials |
 |---|---|---|
-| Grafana | [http://23.22.133.34:3000](http://23.22.133.34:3000) | `GRAFANA_ADMIN_USER` / `GRAFANA_ADMIN_PASSWORD` from `.env` |
-| Prometheus | [http://23.22.133.34:9090](http://23.22.133.34:9090) | No login; restrict access by source IP |
-| Jenkins | [http://23.22.133.34:8080](http://23.22.133.34:8080) | `JENKINS_ADMIN_ID` / `JENKINS_ADMIN_PASSWORD` from `.env` |
+| Grafana | [http://3.85.2.220:3000](http://3.85.2.220:3000) | `GRAFANA_ADMIN_USER` / `GRAFANA_ADMIN_PASSWORD` from `.env` |
+| Prometheus | [http://3.85.2.220:9090](http://3.85.2.220:9090) | No login; restrict access by source IP |
+| Jenkins | [http://3.85.2.220:8080](http://3.85.2.220:8080) | `JENKINS_ADMIN_ID` / `JENKINS_ADMIN_PASSWORD` from `.env` |
 | Loki | Internal Compose service | Use the provisioned Loki data source in Grafana |
 
 Read the dashboard credentials from the server with:
 
 ```bash
-ssh -i ~/Downloads/Kanha.pem ubuntu@ec2-23-22-133-34.compute-1.amazonaws.com \
+ssh -i ~/Downloads/Kanha.pem ubuntu@ec2-3-85-2-220.compute-1.amazonaws.com \
   "grep -E '^(GRAFANA_ADMIN_USER|GRAFANA_ADMIN_PASSWORD|JENKINS_ADMIN_ID|JENKINS_ADMIN_PASSWORD)=' /srv/devtracker/.env"
 ```
 
