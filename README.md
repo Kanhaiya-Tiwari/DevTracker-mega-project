@@ -71,9 +71,10 @@ It runs Trivy dependency/secret scans and backend tests, builds and scans the
 backend and frontend images, and pushes
 `kanhaiyatiwari/devtracker-backend` and
 `kanhaiyatiwari/devtracker-frontend` with commit and `latest` tags. It then
-updates the deployment files without replacing `.env` or uploads, deploys
-both images, and checks `/health`. Configure the Docker Hub username/access
-token in Jenkins using credential ID `docker-hub-credentials`. Configure SMTP
+refreshes deployment files without replacing `.env` or uploads, deploys both
+images, and checks `/health`. Configure GitHub credentials in Jenkins as
+`Github-cred` and the Docker Hub username/access token as
+`docker-hub-credentials`. Configure SMTP
 in Jenkins **Manage Jenkins → System → Extended E-mail Notification** and set
 `SMTP_NOTIFICATIONS_ENABLED=true` in `/srv/devtracker/.env` to receive
 success/failure email at `knhapndt@gmail.com`.

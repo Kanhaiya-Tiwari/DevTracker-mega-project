@@ -25,6 +25,7 @@ jobs:
               git {
                 remote {
                   url('https://github.com/Kanhaiya-Tiwari/DevTracker-mega-project.git')
+                  credentials('Github-cred')
                 }
                 branch('*/master')
               }

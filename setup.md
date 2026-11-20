@@ -3,6 +3,9 @@
 This guide deploys the complete DevTracker stack on a new Ubuntu EC2 instance.
 The same Docker Compose project starts the website, API, database, Redis,
 Grafana, Prometheus, Loki, and Jenkins.
+Application uploads are persisted in `/srv/devtracker/uploads`; the Jenkins
+deployment copies existing backend-container uploads there before replacing
+the backend.
 
 ## 1. Create and secure the EC2 instance
 
@@ -141,6 +144,13 @@ SELECT email, name, created_at FROM users;
 Never select or share `hashed_pw`. Exit `psql` with `\q`.
 
 ## 6. Configure Jenkins credentials and the shared library
+
+Add a **Username with password** credential for GitHub:
+
+1. Use your GitHub username and a read-only token for the repository (if it is
+   private).
+2. Set the credential ID exactly to `Github-cred`.
+3. Do not put the token in the repository or pipeline.
 
 Sign in to Jenkins and add the Docker Hub access token:
 

@@ -17,13 +17,21 @@ pipeline {
         DOCKER_IMAGE_NAME = 'kanhaiyatiwari/devtracker-backend'
         DOCKER_FRONTEND_IMAGE_NAME = 'kanhaiyatiwari/devtracker-frontend'
         DOCKER_HUB_CREDENTIALS = 'docker-hub-credentials'
+        GITHUB_CREDENTIALS = 'Github-cred'
     }
 
     stages {
-        stage('Clean workspace and checkout') {
+        stage('Clean workspace and clone source') {
             steps {
-                deleteDir()
-                checkout scm
+                clean_ws()
+                checkout([
+                    $class: 'GitSCM',
+                    branches: [[name: '*/master']],
+                    userRemoteConfigs: [[
+                        credentialsId: env.GITHUB_CREDENTIALS,
+                        url: 'https://github.com/Kanhaiya-Tiwari/DevTracker-mega-project.git'
+                    ]]
+                ])
             }
         }
 
@@ -110,7 +118,32 @@ pipeline {
             }
         }
 
-        stage('Update deployment files') {
+        stage('Preserve existing uploads') {
+            steps {
+                sh '''
+                    set -eu
+                    mkdir -p "$DEPLOY_DIRECTORY/uploads"
+                    container_id="$(docker compose \
+                      --project-directory "$DEPLOY_DIRECTORY" \
+                      --env-file "$COMPOSE_ENV_FILE" \
+                      -f "$COMPOSE_FILE" ps --all --quiet backend | sed -n '1p')"
+                    if [ -n "$container_id" ]; then
+                      upload_source="$(docker inspect \
+                        --format '{{range .Mounts}}{{if eq .Destination "/app/uploads"}}{{.Source}}{{end}}{{end}}' \
+                        "$container_id")"
+                      if [ "$upload_source" != "$DEPLOY_DIRECTORY/uploads" ]; then
+                        docker cp "$container_id:/app/uploads/." "$DEPLOY_DIRECTORY/uploads/"
+                      fi
+                    fi
+                    docker run --rm --user 0:0 \
+                      --volume "$DEPLOY_DIRECTORY/uploads:/uploads" \
+                      --entrypoint sh "$DOCKER_IMAGE_NAME:$DOCKER_IMAGE_TAG" \
+                      -ec 'chown -R appuser:appuser /uploads'
+                '''
+            }
+        }
+
+        stage('Clean and update deployment files') {
             steps {
                 sh '''
                     set -eu

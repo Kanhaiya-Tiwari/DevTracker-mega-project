@@ -51,6 +51,8 @@ services:
       OPENROUTER_MODEL: ${OPENROUTER_MODEL:-meta-llama/llama-3.1-8b-instruct:free}
       ENVIRONMENT: production
       LOG_LEVEL: ${LOG_LEVEL:-INFO}
+    volumes:
+      - ./uploads:/app/uploads
     depends_on:
       postgres:
         condition: service_healthy

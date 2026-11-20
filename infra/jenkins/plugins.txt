@@ -4,3 +4,4 @@ github
 job-dsl
 workflow-aggregator
 email-ext
+ws-cleanup
